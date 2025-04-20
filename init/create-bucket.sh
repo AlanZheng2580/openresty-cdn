@@ -1,18 +1,26 @@
 #!/bin/sh
+set -x 
 
-sleep 5
+sleep 3
 
 mc alias set local http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
 
-# 建立 bucket（若尚未存在）
-if mc ls local | grep -q "$MINIO_BUCKET"; then
-  echo "Bucket $MINIO_BUCKET already exists"
-else
-  mc mb local/$MINIO_BUCKET
-  echo "✅ Bucket $MINIO_BUCKET created"
-fi
+# 建立 bucket-a
+mc mb --ignore-existing local/$BUCKET_A_NAME
+echo "hello from bucket-a" > /tmp/hello-a.txt
+mc cp /tmp/hello-a.txt local/$BUCKET_A_NAME/hello.txt
 
-# 建立 hello.txt 測試檔案（每次都覆蓋）
-echo "Hello from MinIO!" > /tmp/hello.txt
-mc cp /tmp/hello.txt local/$MINIO_BUCKET/hello.txt
-echo "✅ hello.txt uploaded to $MINIO_BUCKET"
+# 建立 bucket-b
+mc mb --ignore-existing local/$BUCKET_B_NAME
+echo "hello from bucket-b" > /tmp/hello-b.txt
+mc cp /tmp/hello-b.txt local/$BUCKET_B_NAME/hello.txt
+
+# 建立 user-a 使用者，匯入自訂 bucket-a policy 並掛給 user-a
+mc admin user add local "$BUCKET_A_ACCESS_KEY" "$BUCKET_A_SECRET_KEY"
+mc admin policy create local bucketa-readwrite /init/policy-bucket-a.json
+mc admin policy attach local bucketa-readwrite --user="$BUCKET_A_ACCESS_KEY"
+
+# 建立 user-b 使用者，匯入自訂 bucket-b policy 並掛給 user-b
+mc admin user add local "$BUCKET_B_ACCESS_KEY" "$BUCKET_B_SECRET_KEY"
+mc admin policy create local bucketb-readwrite /init/policy-bucket-b.json
+mc admin policy attach local bucketb-readwrite --user="$BUCKET_B_ACCESS_KEY"

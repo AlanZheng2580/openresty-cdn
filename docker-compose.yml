@@ -23,7 +23,12 @@ services:
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-      - MINIO_BUCKET=${MINIO_BUCKET}
+      - BUCKET_A_NAME=${BUCKET_A_NAME}
+      - BUCKET_A_ACCESS_KEY=${BUCKET_A_ACCESS_KEY}
+      - BUCKET_A_SECRET_KEY=${BUCKET_A_SECRET_KEY}
+      - BUCKET_B_NAME=${BUCKET_B_NAME}
+      - BUCKET_B_ACCESS_KEY=${BUCKET_B_ACCESS_KEY}
+      - BUCKET_B_SECRET_KEY=${BUCKET_B_SECRET_KEY}
 
   openresty:
     build: ./openresty
@@ -34,6 +39,3 @@ services:
       - ./openresty/lua:/opt/bitnami/openresty/nginx/lua
     depends_on:
       - minio
-    environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}

@@ -23,9 +23,19 @@ rebuild: ## 重建 OpenResty image
 	docker-compose build openresty
 
 curl-test: ## 測試 curl 調用 OpenResty 代理的 MinIO 私有檔案
-	curl -v http://localhost:8080/media/$(MINIO_BUCKET)/hello.txt
+	curl -v http://localhost:8080/${BUCKET_A_NAME}/hello.txt
+	curl -v http://localhost:8080/${BUCKET_B_NAME}/hello.txt
 
 mc-upload: ## 上傳一個測試檔案到 MinIO 私有 bucket
+	echo "hello from bucket-a" > /tmp/hello-a.txt
+	echo "hello from bucket-b" > /tmp/hello-b.txt
+	
 	docker run --rm --network host \
 	-e MC_HOST_local="http://$(MINIO_ROOT_USER):$(MINIO_ROOT_PASSWORD)@localhost:9000" \
-	minio/mc cp /etc/hosts local/$(MINIO_BUCKET)/hello.txt
+	-v /tmp:/tmp \
+	minio/mc cp /tmp/hello-a.txt local/$(BUCKET_A_NAME)/hello.txt
+
+	docker run --rm --network host \
+	-e MC_HOST_local="http://$(MINIO_ROOT_USER):$(MINIO_ROOT_PASSWORD)@localhost:9000" \
+	-v /tmp:/tmp \
+	minio/mc cp /tmp/hello-b.txt local/$(BUCKET_B_NAME)/hello.txt

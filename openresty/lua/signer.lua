@@ -25,30 +25,29 @@ local function hmac_sha256(key, msg)
     return ffi.string(md, md_len[0])
 end
 
--- config
-local access_key = os.getenv("AWS_ACCESS_KEY_ID")
-local secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-local host = "minio:9000"
-local region = "us-east-1"
-local service = "s3"
+-- configurations from NGINX
+local access_key  = ngx.var.access_key
+local secret_key  = ngx.var.secret_key
+local host        = ngx.var.minio_host
+local bucket      = ngx.var.bucket_name
+local object      = ngx.var.object_key
+local bucket_url  = "http://" .. host .. "/" .. bucket .. "/" .. object
 
-if not access_key or not secret_key then
+if not (host and access_key and secret_key and bucket and object) then
     ngx.status = 500
-    ngx.say("Missing AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY environment variables.")
+    ngx.say("Missing required parameters.")
     return
 end
 
--- path
-local uri = ngx.var.uri
-local object_path = string.sub(uri, 8)
-local bucket_url = "http://" .. host .. "/" .. object_path
-
+-- AWS Signature V4
 -- timestamps
 local amz_date = os.date("!%Y%m%dT%H%M%SZ")
 local datestamp = os.date("!%Y%m%d")
+local region = "us-east-1"
+local service = "s3"
 
 -- canonical request
-local canonical_uri = "/" .. object_path
+local canonical_uri = "/" .. bucket .. "/" .. object
 local canonical_headers = "host:" .. host .. "\n" .. "x-amz-date:" .. amz_date .. "\n"
 local signed_headers = "host;x-amz-date"
 local payload_hash = str.to_hex(sha256:new():final("")) -- empty body
