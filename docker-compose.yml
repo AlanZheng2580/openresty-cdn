@@ -1,0 +1,39 @@
+version: "3.3"
+
+services:
+  minio:
+    image: minio/minio:RELEASE.2025-04-08T15-41-24Z-cpuv1
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./minio/data:/data
+    command: server /data --console-address ":9001"
+
+  mc:
+    image: minio/mc:RELEASE.2025-04-08T15-39-49Z-cpuv1
+    depends_on:
+      - minio
+    entrypoint: [ "/bin/sh", "-c", "/init/create-bucket.sh" ]
+    volumes:
+      - ./init:/init
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET=${MINIO_BUCKET}
+
+  openresty:
+    build: ./openresty
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./openresty/conf:/opt/bitnami/openresty/nginx/conf
+      - ./openresty/lua:/opt/bitnami/openresty/nginx/lua
+    depends_on:
+      - minio
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}

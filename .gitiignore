@@ -1,0 +1,25 @@
+# Ignore local environment config
+.env
+
+# Ignore MinIO persistent data
+minio/data/
+
+# Lua cache / temp files
+*.luac
+*.swp
+
+# Log files
+*.log
+
+# Docker artifacts
+*.pid
+*.sock
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Git metadata override (rare case)
+!.gitignore
