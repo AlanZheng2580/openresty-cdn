@@ -27,11 +27,11 @@ local function hmac_sha256(key, msg)
 end
 
 -- configurations from NGINX
-local access_key  = os.getenv("TEST_ACCESS_KEY") -- ngx.var.access_key
-local secret_key  = os.getenv("TEST_SECRET_KEY") -- ngx.var.secret_key
+local access_key  = os.getenv("TEST_ACCESS_KEY") or "bucketa-key" -- ngx.var.access_key
+local secret_key  = os.getenv("TEST_SECRET_KEY") or "bucketa-secret" -- ngx.var.secret_key
 local host        = os.getenv("TEST_MINIO_HOST") or "minio:9000" -- ngx.var.minio_host
-local bucket      = os.getenv("TEST_BUCKET") -- ngx.var.bucket_name
-local object      = os.getenv("TEST_OBJECT") -- ngx.var.object_key
+local bucket      = os.getenv("TEST_BUCKET") or "bucket-a" -- ngx.var.bucket_name
+local object      = os.getenv("TEST_OBJECT") or "hello.txt" -- ngx.var.object_key
 local bucket_url  = "http://" .. host .. "/" .. bucket .. "/" .. object
 
 if not (host and access_key and secret_key and bucket and object) then
@@ -42,8 +42,8 @@ end
 
 -- AWS Signature V4
 -- timestamps
-local amz_date = os.date("!%Y%m%dT%H%M%SZ")
-local datestamp = os.date("!%Y%m%d")
+local amz_date = os.getenv("TEST_DATE") or os.date("!%Y%m%dT%H%M%SZ")
+local datestamp = os.getenv("TEST_DATESTAMP") or os.date("!%Y%m%d")
 local region = "us-east-1"
 local service = "s3"
 
