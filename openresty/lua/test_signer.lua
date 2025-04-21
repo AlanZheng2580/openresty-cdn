@@ -1,3 +1,4 @@
+-- test cmd: TEST_ACCESS_KEY=bucketa-key TEST_SECRET_KEY=bucketa-secret TEST_BUCKET=bucket-a TEST_OBJECT=hello.txt resty test_signer.lua
 local http = require "resty.http"
 local ffi = require "ffi"
 local C = ffi.C
@@ -26,11 +27,11 @@ local function hmac_sha256(key, msg)
 end
 
 -- configurations from NGINX
-local access_key  = ngx.var.access_key
-local secret_key  = ngx.var.secret_key
-local host        = ngx.var.minio_host
-local bucket      = ngx.var.bucket_name
-local object      = ngx.var.object_key
+local access_key  = os.getenv("TEST_ACCESS_KEY") -- ngx.var.access_key
+local secret_key  = os.getenv("TEST_SECRET_KEY") -- ngx.var.secret_key
+local host        = os.getenv("TEST_MINIO_HOST") or "minio:9000" -- ngx.var.minio_host
+local bucket      = os.getenv("TEST_BUCKET") -- ngx.var.bucket_name
+local object      = os.getenv("TEST_OBJECT") -- ngx.var.object_key
 local bucket_url  = "http://" .. host .. "/" .. bucket .. "/" .. object
 
 if not (host and access_key and secret_key and bucket and object) then
@@ -88,23 +89,43 @@ local authorization_header = table.concat({
     "Signature=" .. signature
 })
 
+print("AWS Signature V4 Headers:")
+print("Host: " ..host)
+print("x-amz-date: " .. amz_date)
+print("Authorization: " .. authorization_header)
+print("Canonical URI: " .. canonical_uri)
+print("Payload Hash: " .. payload_hash)
+print("---")
+print("Canonical Request:\n" .. canonical_request)
+print("---")
+print("String to Sign:\n" .. string_to_sign)
+print("curl:\n")
+print(string.format([[
+curl -k -v "%s" \
+    -H "Host: %s" \
+    -H "x-amz-date: %s" \
+    -H "x-amz-content-sha256: %s" \
+    -H "Authorization: %s"
+]], bucket_url, host, amz_date, payload_hash, authorization_header))
+
 -- send to MinIO
-local httpc = http.new()
-local res, err = httpc:request_uri(bucket_url, {
-    method = "GET",
-    headers = {
-        ["Host"] = host,
-        ["x-amz-date"] = amz_date,
-        ["x-amz-content-sha256"] = payload_hash,
-        ["Authorization"] = authorization_header
-    }
-})
+-- local httpc = http.new()
+-- local res, err = httpc:request_uri(bucket_url, {
+--     method = "GET",
+--     headers = {
+--         ["Host"] = host,
+--         ["x-amz-date"] = amz_date,
+--         ["x-amz-content-sha256"] = payload_hash,
+--         ["Authorization"] = authorization_header
+--     }
+-- })
 
-if not res then
-    ngx.status = 502
-    ngx.say("Failed to request MinIO: ", err)
-    return
-end
+-- if not res then
+--     ngx.status = 502
+--     ngx.say("Failed to request MinIO: ", err)
+--     return
+-- end
 
-ngx.status = res.status
-ngx.print(res.body)
+-- ngx.status = res.status
+-- ngx.print(res.body)
+
