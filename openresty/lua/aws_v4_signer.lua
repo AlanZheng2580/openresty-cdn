@@ -32,8 +32,9 @@ local function build_aws_v4_signature(args)
     local object = args.object
     local bucket_url  = "http://" .. host .. "/" .. bucket .. "/" .. object
 
-    local amz_date = os.date("!%Y%m%dT%H%M%SZ")
-    local datestamp = os.date("!%Y%m%d")
+    local utc = ngx.utctime()
+    local datestamp = utc:sub(1,4) .. utc:sub(6,7) .. utc:sub(9,10)
+    local amz_date = datestamp .. "T" .. utc:sub(12,13) .. utc:sub(15,16) .. utc:sub(18,19) .. "Z"
     local region = args.region or "us-east-1"
     local service = "s3"
     local body = args.body or ""
