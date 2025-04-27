@@ -1,4 +1,4 @@
--- test cmd: TEST_ACCESS_KEY=bucketa-key TEST_SECRET_KEY=bucketa-secret TEST_BUCKET=bucket-a TEST_OBJECT=hello.txt resty test_signer.lua
+-- test cmd: TEST_ACCESS_KEY=bucketa-key TEST_SECRET_KEY=bucketa-secret TEST_MINIO_HOST=minio:9000 TEST_BUCKET=bucket-a TEST_OBJECT=hello.txt resty test_signer.lua
 local signer = require "aws_v4_signer"
 
 -- 解析 CLI 引數
