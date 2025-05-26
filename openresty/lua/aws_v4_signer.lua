@@ -25,12 +25,12 @@ local function hmac_sha256(key, msg)
 end
 
 local function build_aws_v4_signature(args)
+    local schema = args.schema
+    local host = args.host
     local access_key = args.access_key
     local secret_key = args.secret_key
-    local host = args.host
     local bucket = args.bucket
     local object = args.object
-    local bucket_url  = "http://" .. host .. "/" .. bucket .. "/" .. object
 
     local utc = ngx.utctime()
     local datestamp = utc:sub(1,4) .. utc:sub(6,7) .. utc:sub(9,10)
@@ -41,6 +41,7 @@ local function build_aws_v4_signature(args)
     local method = args.method or "GET"
 
     local canonical_uri = "/" .. bucket .. "/" .. object
+    local bucket_url  = schema .. "://" .. host .. "/" .. bucket .. "/" .. object
     local canonical_headers = "host:" .. host .. "\n" .. "x-amz-date:" .. amz_date .. "\n"
     local signed_headers = "host;x-amz-date"
     local payload_hash = str.to_hex(sha256:new():final(""))

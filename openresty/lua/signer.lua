@@ -2,9 +2,10 @@ local signer = require "aws_v4_signer"
 local http = require "resty.http"
 
 -- configurations from NGINX
+local schema    = ngx.var.minio_schema
+local host        = ngx.var.minio_host
 local access_key  = ngx.var.access_key
 local secret_key  = ngx.var.secret_key
-local host        = ngx.var.minio_host
 local bucket      = ngx.var.bucket_name
 local object      = ngx.var.object_key
 
@@ -15,9 +16,10 @@ if not (host and access_key and secret_key and bucket and object) then
 end
 
 local sig = signer.build{
+    schema = schema,
+    host = host,
     access_key = access_key,
     secret_key = secret_key,
-    host = host,
     bucket = bucket,
     object = object,
 }
