@@ -26,6 +26,9 @@ curl-test: ## 測試 curl 調用 OpenResty 代理的 MinIO 私有檔案
 	curl -v http://localhost:8080/${BUCKET_A_NAME}/hello.txt
 	curl -v http://localhost:8080/${BUCKET_B_NAME}/hello.txt
 
+lua-test: ## 產生curl指令
+	docker exec openresty-cdn_openresty_1 bash -c "cd /opt/bitnami/openresty/nginx/lua/ && TEST_ACCESS_KEY=bucketa-key TEST_SECRET_KEY=bucketa-secret TEST_MINIO_HOST=minio:9000 TEST_BUCKET=bucket-a TEST_OBJECT=hello.txt resty test_signer.lua"
+
 mc-upload: ## 上傳一個測試檔案到 MinIO 私有 bucket
 	echo "hello from bucket-a" > /tmp/hello-a.txt
 	echo "hello from bucket-b" > /tmp/hello-b.txt

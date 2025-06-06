@@ -8,6 +8,8 @@
 - 提供 `/bucket-a/<object>` 與 `/bucket-b/<object>` 路由對應私有存取
 - 使用 Docker Compose 一鍵啟動完整開發環境
 - 使用 Makefile 管理常用開發指令
+- 附帶 `init/policy-*.json` 限制使用者僅能存取對應 bucket
+- 共用簽章邏輯抽出為 `aws_v4_signer.lua`，可於 signer.lua 與 CLI `test_signer.lua` 共用
 
 ---
 
@@ -78,10 +80,13 @@ set $object_key $1;  # 從 rewrite 或 if 拿到物件 key
 ├── Makefile
 ├── init/
 │   ├── create-bucket.sh
-│   ├── policy-bucket-a.json
-│   └── policy-bucket-b.json
+│   ├── policy-bucket-a.json  # ➜ 限定 bucketa-key 只能存取 bucket-a
+│   └── policy-bucket-b.json  # ➜ 限定 bucketb-key 只能存取 bucket-b
 ├── openresty/
 │   ├── conf/nginx.conf
-│   └── lua/signer.lua
+│   └── lua/
+│       ├── signer.lua              # NGINX 呼叫的 proxy handler
+│       ├── test_signer.lua         # CLI 測試 signer 的產出 header 結果
+│       └── aws_v4_signer.lua       # ➜ 共用 AWS V4 簽名邏輯模組
 └── minio/data/  # 本地 persistent 資料
 ```
