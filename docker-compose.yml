@@ -37,8 +37,10 @@ services:
       - "8080:8080"
     volumes:
       - ./openresty/conf/nginx.conf:/opt/bitnami/openresty/nginx/conf/nginx.conf
+      - ./openresty/apikeys:/apikeys
       - ./openresty/lua:/opt/bitnami/openresty/nginx/lua
     environment:
+      - SECDN_APIKEY_DIR=/apikeys
       - MINIO_SECRET_KEY=${BUCKET_SECRET_KEY}
     depends_on:
       - minio
