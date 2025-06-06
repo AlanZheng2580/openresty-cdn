@@ -4,8 +4,8 @@
 
 - 使用 OpenResty + Lua 作為 CDN Proxy
 - 串接 MinIO 私有 bucket，使用 AWS Signature V4 驗證
-- 每個 bucket 對應一組獨立使用者與 access key
-- 提供 `/bucket-a/<object>` 與 `/bucket-b/<object>` 路由對應私有存取
+- MinIO有一組獨立使用者與 access key，設定可存取多個bucket
+- 提供 `/minio/<bucket>/<object>` 路由對應私有存取
 - 使用 Docker Compose 一鍵啟動完整開發環境
 - 使用 Makefile 管理常用開發指令
 - 附帶 `init/policy-*.json` 限制使用者僅能存取對應 bucket
@@ -31,8 +31,8 @@
 
 4. 使用 curl 測試透過 OpenResty Proxy 存取：
     ```bash
-    make curl-bucket-a  # 應顯示 hello from bucket-a
-    make curl-bucket-b  # 應顯示 hello from bucket-b
+    make curl-test-a  # 應顯示 hello from bucket-a
+    make curl-test-b  # 應顯示 hello from bucket-b
     ```
 
 ---
@@ -47,6 +47,7 @@
 | `make logs`      | 查看 OpenResty 的日誌 |
 | `make mc-upload` | 手動上傳 `/etc/hosts` 測試檔案至兩個 bucket |
 | `make curl-test` | 一次測試 bucket-a/bucket-b 的 proxy 存取 |
+| `make lua-test` | 產生curl測試指令，可測試aws簽章 |
 
 ---
 
@@ -63,10 +64,14 @@ Missing AWS credentials
 
 ```nginx
 set $minio_host "minio:9000";
-set $access_key "bucketa-key";
-set $secret_key "bucketa-secret";
-set $bucket_name "bucket-a";
-set $object_key $1;  # 從 rewrite 或 if 拿到物件 key
+set $access_key "bucket-key";
+set $bucket_name $1;
+set $object_key $2;
+```
+
+Env有設定：
+```bash
+MINIO_SECRET_KEY=${BUCKET_SECRET_KEY}
 ```
 
 ---
@@ -80,8 +85,7 @@ set $object_key $1;  # 從 rewrite 或 if 拿到物件 key
 ├── Makefile
 ├── init/
 │   ├── create-bucket.sh
-│   ├── policy-bucket-a.json  # ➜ 限定 bucketa-key 只能存取 bucket-a
-│   └── policy-bucket-b.json  # ➜ 限定 bucketb-key 只能存取 bucket-b
+│   └── policy-bucket.json  # ➜ 限定 bucketa-key 能存取 bucket-a, bucket-b
 ├── openresty/
 │   ├── conf/nginx.conf
 │   └── lua/

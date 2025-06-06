@@ -1,4 +1,4 @@
--- test cmd: TEST_ACCESS_KEY=bucketa-key TEST_SECRET_KEY=bucketa-secret TEST_MINIO_HOST=minio:9000 TEST_BUCKET=bucket-a TEST_OBJECT=hello.txt resty test_signer.lua
+-- test cmd: TEST_ACCESS_KEY=bucket-key TEST_SECRET_KEY=bucket-secret TEST_MINIO_HOST=minio:9000 TEST_BUCKET=bucket-a TEST_OBJECT=hello.txt resty test_signer.lua
 local signer = require "aws_v4_signer"
 
 -- 解析 CLI 引數
@@ -11,8 +11,9 @@ for _, arg in ipairs(arg) do
 end
 
 -- 預設值（環境變數 or fallback）
-local access_key = args.access_key or os.getenv("TEST_ACCESS_KEY") or "bucketa-key"
-local secret_key = args.secret_key or os.getenv("TEST_SECRET_KEY") or "bucketa-secret"
+local schema     = args.schema or os.getenv("TEST_SCHEMA") or "http"
+local access_key = args.access_key or os.getenv("TEST_ACCESS_KEY") or "bucket-key"
+local secret_key = args.secret_key or os.getenv("TEST_SECRET_KEY") or "bucket-secret"
 local host       = args.host or os.getenv("TEST_MINIO_HOST") or "minio:9000"
 local bucket     = args.bucket or os.getenv("TEST_BUCKET") or "bucket-a"
 local object     = args.object or os.getenv("TEST_OBJECT") or "hello.txt"
@@ -20,6 +21,7 @@ local method     = args.method or "GET"
 local body       = args.body or ""
 
 local sig = signer.build{
+    schema = schema,
     access_key = access_key,
     secret_key = secret_key,
     host = host,
