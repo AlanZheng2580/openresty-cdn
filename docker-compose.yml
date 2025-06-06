@@ -24,18 +24,22 @@ services:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
       - BUCKET_A_NAME=${BUCKET_A_NAME}
-      - BUCKET_A_ACCESS_KEY=${BUCKET_A_ACCESS_KEY}
-      - BUCKET_A_SECRET_KEY=${BUCKET_A_SECRET_KEY}
       - BUCKET_B_NAME=${BUCKET_B_NAME}
-      - BUCKET_B_ACCESS_KEY=${BUCKET_B_ACCESS_KEY}
-      - BUCKET_B_SECRET_KEY=${BUCKET_B_SECRET_KEY}
-
+      - BUCKET_ACCESS_KEY=${BUCKET_ACCESS_KEY}
+      - BUCKET_SECRET_KEY=${BUCKET_SECRET_KEY}
+  httpbin:
+    image: kennethreitz/httpbin
+    ports:
+      - '80:80'
   openresty:
     build: ./openresty
     ports:
       - "8080:8080"
     volumes:
-      - ./openresty/conf:/opt/bitnami/openresty/nginx/conf
+      - ./openresty/conf/nginx.conf:/opt/bitnami/openresty/nginx/conf/nginx.conf
       - ./openresty/lua:/opt/bitnami/openresty/nginx/lua
+    environment:
+      - MINIO_SECRET_KEY=${BUCKET_SECRET_KEY}
     depends_on:
       - minio
+      - httpbin
