@@ -12,7 +12,6 @@ services:
     volumes:
       - ./minio/data:/data
     command: server /data --console-address ":9001"
-
   mc:
     image: minio/mc:RELEASE.2025-04-08T15-39-49Z-cpuv1
     depends_on:
@@ -42,4 +41,5 @@ services:
       - MINIO_SECRET_KEY=${BUCKET_SECRET_KEY}
     depends_on:
       - minio
+      - mc
       - httpbin
