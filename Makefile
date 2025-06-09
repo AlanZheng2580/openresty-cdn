@@ -19,16 +19,22 @@ down: ## 停止所有服務
 logs: ## 查看 OpenResty 的 logs
 	docker-compose logs -f openresty
 
+reload:
+	docker-compose exec openresty openresty -s reload
+
 rebuild: ## 重建 OpenResty image
 	docker-compose build openresty
 
+list-api-keys:
+	curl -H "X-SECDN-API-KEY: secdn-admin" http://localhost:8080/api/keys
+	
 curl-test-a:
-	curl -v http://localhost:8080/minio/${BUCKET_A_NAME}/hello.txt
+	curl -H "X-SECDN-API-KEY: abcd" http://localhost:8080/minio/${BUCKET_A_NAME}/hello.txt
 
 curl-test-b:
-	curl -v http://localhost:8080/minio/${BUCKET_B_NAME}/hello.txt
+	curl -H "X-SECDN-API-KEY: abcd" http://localhost:8080/minio/${BUCKET_B_NAME}/hello.txt
 
-curl-test: curl-test-a curl-test-b
+curl-test: curl-test-a curl-test-b list-api-keys
 
 lua-test: ## 產生curl指令
 	docker exec openresty-cdn_openresty_1 bash -c "cd /opt/bitnami/openresty/nginx/lua/ && TEST_ACCESS_KEY=${BUCKET_ACCESS_KEY} TEST_SECRET_KEY=${BUCKET_SECRET_KEY} TEST_MINIO_HOST=minio:9000 TEST_BUCKET=${BUCKET_A_NAME} TEST_OBJECT=hello.txt resty test_signer.lua"

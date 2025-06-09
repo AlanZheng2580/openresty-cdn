@@ -13,6 +13,11 @@ FROM cyching/openresty:20250526-861eb6ae-1.27.1-1-debian-12-r5
 USER root
 
 RUN sed -i '/exec "\$@"/i \
+# Check if SECDN_APIKEY_DIR exists and is a directory\n\
+if [ -z "$SECDN_APIKEY_DIR" ] || [ ! -d "$SECDN_APIKEY_DIR" ]; then\n\
+  echo "[FATAL] SECDN_APIKEY_DIR is not set or not a directory!" >&2\n\
+  exit 1\n\
+fi\n\
 # Check if MINIO_SECRET_KEY exists\n\
 if [ -z "$MINIO_SECRET_KEY" ]; then\n\
   echo "[FATAL] MINIO_SECRET_KEY is not set!" >&2\n\
