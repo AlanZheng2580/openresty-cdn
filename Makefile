@@ -52,3 +52,6 @@ mc-upload: ## 上傳一個測試檔案到 MinIO 私有 bucket
 	-e MC_HOST_local="http://$(MINIO_ROOT_USER):$(MINIO_ROOT_PASSWORD)@localhost:9000" \
 	-v /tmp:/tmp \
 	minio/mc cp /tmp/hello-b.txt local/$(BUCKET_B_NAME)/hello.txt
+
+gen-api-key:
+	openssl rand -hex 16
