@@ -27,9 +27,13 @@ services:
       - BUCKET_ACCESS_KEY=${BUCKET_ACCESS_KEY}
       - BUCKET_SECRET_KEY=${BUCKET_SECRET_KEY}
   httpbin:
-    image: kennethreitz/httpbin
+    image: cyching/go-httpbin:20250124-fe6c2b26
     ports:
       - '80:80'
+    command: 
+      - "/bin/go-httpbin"
+      - "-port" 
+      - "80"
   openresty:
     build: ./openresty
     ports:

@@ -36,6 +36,20 @@ curl-test-b:
 
 curl-test: curl-test-a curl-test-b list-api-keys
 
+ab-test-apikey: 
+	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: abcd" "http://localhost:8080/test/apikey"
+
+ab-test-minio: 
+	@ab -n 100000 -c 50 "http://localhost:8080/test/minio/hello.txt"
+
+ab-test-all: 
+	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: abcd" "http://localhost:8080/test/all/hello.txt"
+
+ab-install:
+	@echo "Installing Apache Benchmark (ab)..."
+	@sudo apt-get update
+	@sudo apt-get install -y apache2-utils
+
 lua-test: ## 產生curl指令
 	docker exec openresty-cdn_openresty_1 bash -c "cd /opt/bitnami/openresty/nginx/lua/ && TEST_ACCESS_KEY=${BUCKET_ACCESS_KEY} TEST_SECRET_KEY=${BUCKET_SECRET_KEY} TEST_MINIO_HOST=minio:9000 TEST_BUCKET=${BUCKET_A_NAME} TEST_OBJECT=hello.txt resty test_signer.lua"
 
@@ -55,3 +69,9 @@ mc-upload: ## 上傳一個測試檔案到 MinIO 私有 bucket
 
 gen-api-key:
 	openssl rand -hex 16
+
+benchmark_signer:
+	curl "http://localhost:8080/benchmark_signer?n=100000"
+
+benchmark_timer:
+	curl "http://localhost:8080/benchmark_timer"
