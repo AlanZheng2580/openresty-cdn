@@ -61,6 +61,15 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		// Generate the curl command
 		curlCommand := fmt.Sprintf(`curl -v -H "Cookie: SECDN-CDN-Cookie=%s" http://localhost:8080/test/cookie/ok/`, signedCookie)
 
+		// Set the cookie in the response
+		http.SetCookie(w, &http.Cookie{
+			Name:     "SECDN-CDN-Cookie",
+			Value:    signedCookie,
+			Path:     "/",
+			Expires:  expiration,
+			HttpOnly: true,
+		})
+
 		// Render the template with the data
 		data := PageData{
 			URLPrefix:    urlPrefix,
@@ -123,7 +132,7 @@ const homePageTemplate = `
         <label for="expiration">Expiration (e.g., 2025-06-20T23:59:59Z):</label><br>
         <input type="text" id="expiration" name="expiration" value="{{.Expiration}}" required><br><br>
 
-        <button type="submit">Generate Cookie</button>
+        <button type="submit">Generate/Set Cookie</button>
     </form>
 
     {{if .SignedCookie}}
@@ -134,6 +143,12 @@ const homePageTemplate = `
     <h2>Generated cURL Command</h2>
     <p><strong>cURL Command:</strong></p>
     <pre>{{.CurlCommand}}</pre>
+
+	<h2>Redirect to Test Page</h2>
+	<form action="" method="GET" onsubmit="window.open(document.getElementById('urlInput').value, '_blank'); return false;">
+		<input type="text" id="urlInput" name="url" value="http://localhost:8080/test/cookie" style="width: 80%;"/><br>
+		<button type="submit">Go to Test Page with Cookie</button>
+	</form>
     {{end}}
 </body>
 </html>
