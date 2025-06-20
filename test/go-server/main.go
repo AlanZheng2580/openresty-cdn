@@ -16,6 +16,7 @@ type PageData struct {
 	KeyName      string
 	Key          string
 	Expiration   string
+	Domain       string
 	SignedCookie string
 	CurlCommand  string
 }
@@ -32,6 +33,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		keyName := r.FormValue("keyName")
 		keyHex := r.FormValue("key")
 		expirationStr := r.FormValue("expiration")
+		domain := r.FormValue("domain")
 
 		// Convert expiration to time.Time
 		expiration, err := time.Parse("2006-01-02T15:04:05Z", expirationStr)
@@ -67,6 +69,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 			Value:    signedCookie,
 			Path:     "/",
 			Expires:  expiration,
+			Domain:   domain,
 			HttpOnly: true,
 		})
 
@@ -76,6 +79,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 			KeyName:      keyName,
 			Key:          keyHex,
 			Expiration:   expirationStr,
+			Domain:       domain,
 			SignedCookie: signedCookie,
 			CurlCommand:  curlCommand,
 		}
@@ -123,14 +127,17 @@ const homePageTemplate = `
         <label for="urlPrefix">URL Prefix (e.g., /test/cookie/ok):</label><br>
         <input type="text" id="urlPrefix" name="urlPrefix" value="{{.URLPrefix}}" required><br><br>
 
-        <label for="keyName">Key Name:</label><br>
+        <label for="keyName">Key Name (e.g., user-a):</label><br>
         <input type="text" id="keyName" name="keyName" value="{{.KeyName}}" required><br><br>
 
-        <label for="key">Key (16-byte hex string):</label><br>
+        <label for="key">Key (16-byte hex string)(e.g., 58028419ac995b94cc7750b7c5e3a117):</label><br>
         <input type="text" id="key" name="key" value="{{.Key}}" required><br><br>
 
         <label for="expiration">Expiration (e.g., 2025-06-20T23:59:59Z):</label><br>
         <input type="text" id="expiration" name="expiration" value="{{.Expiration}}" required><br><br>
+
+		<label for="domain">Domain (e.g., localhost):</label><br>
+        <input type="text" id="domain" name="domain" value="{{.Domain}}" required><br><br>
 
         <button type="submit">Generate/Set Cookie</button>
     </form>
@@ -146,7 +153,7 @@ const homePageTemplate = `
 
 	<h2>Redirect to Test Page</h2>
 	<form action="" method="GET" onsubmit="window.open(document.getElementById('urlInput').value, '_blank'); return false;">
-		<input type="text" id="urlInput" name="url" value="http://localhost:8080/test/cookie" style="width: 80%;"/><br>
+		<input type="text" id="urlInput" name="url" value="http://localhost:8080/test/cookie/ok" style="width: 80%;"/><br>
 		<button type="submit">Go to Test Page with Cookie</button>
 	</form>
     {{end}}
