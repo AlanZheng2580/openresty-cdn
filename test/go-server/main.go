@@ -59,7 +59,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Generate the curl command
-		curlCommand := fmt.Sprintf(`curl -v -H "Cookie: Cloud-CDN-Cookie=%s" http://localhost:8080/test/cookie/ok/`, signedCookie)
+		curlCommand := fmt.Sprintf(`curl -v -H "Cookie: SECDN-CDN-Cookie=%s" http://localhost:8080/test/cookie/ok/`, signedCookie)
 
 		// Render the template with the data
 		data := PageData{
@@ -81,7 +81,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, nil)
 }
 
-// signCookie creates a signed cookie for an endpoint served by Cloud CDN.
+// signCookie creates a signed cookie for an endpoint served by SECDN CDN.
 func signCookie(urlPrefix, keyName string, key []byte, expiration time.Time) (string, error) {
 	encodedURLPrefix := base64.URLEncoding.EncodeToString([]byte(urlPrefix))
 	input := fmt.Sprintf("URLPrefix=%s:Expires=%d:KeyName=%s",
@@ -106,10 +106,10 @@ const homePageTemplate = `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud CDN Cookie Generator</title>
+    <title>SECDN CDN Cookie Generator</title>
 </head>
 <body>
-    <h1>Cloud CDN Cookie Generator</h1>
+    <h1>SECDN CDN Cookie Generator</h1>
     <form method="POST" action="/">
         <label for="urlPrefix">URL Prefix (e.g., /test/cookie/ok):</label><br>
         <input type="text" id="urlPrefix" name="urlPrefix" value="{{.URLPrefix}}" required><br><br>

@@ -110,12 +110,12 @@ function _M.verify(api_key_name)
 end
 
 -- Verify cookie and HMAC signature
--- Example: Set-Cookie: Cloud-CDN-Cookie=URLPrefix=aHR0cHM6Ly9tZWRpYS5leGFtcGxlLmNvbS92aWRlb3Mv:Expires=1566268009:KeyName=mySigningKey:Signature=0W2xlMlQykL2TG59UZnnHzkxoaw=; Domain=media.example.com; Path=/; Expires=Tue, 20 Aug 2019 02:26:49 GMT; HttpOnly
+-- Example: Set-Cookie: SECDN-CDN-Cookie=URLPrefix=aHR0cHM6Ly9tZWRpYS5leGFtcGxlLmNvbS92aWRlb3Mv:Expires=1566268009:KeyName=mySigningKey:Signature=0W2xlMlQykL2TG59UZnnHzkxoaw=; Domain=media.example.com; Path=/; Expires=Tue, 20 Aug 2019 02:26:49 GMT; HttpOnly
 function _M.verify_cookie()
     -- Fetch the signed cookie from the request
-    local cookie_value = ngx.var["cookie_cloud-cdn-cookie"]  -- 'Cloud-CDN-Cookie' will be used here (in lowercase)
+    local cookie_value = ngx.var["cookie_secdn-cdn-cookie"]  -- 'SECDN-CDN-Cookie' will be used here (in lowercase)
     if not cookie_value then
-        ngx.log(ngx.ERR, "[HMAC] Missing cookie: Cloud-CDN-Cookie")
+        ngx.log(ngx.ERR, "[HMAC] Missing cookie: SECDN-CDN-Cookie")
         return false, "Cookie not found"
     end
 
