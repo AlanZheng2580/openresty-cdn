@@ -26,24 +26,24 @@ rebuild: ## 重建 OpenResty image
 	docker-compose build openresty
 
 list-api-keys:
-	curl -H "X-SECDN-API-KEY: secdn-admin" http://localhost:8080/api/keys
+	curl -H "X-SECDN-API-KEY: 01234567890123456789012345678901" http://localhost:8080/api/keys
 	
 curl-test-a:
-	curl -H "X-SECDN-API-KEY: abcd" http://localhost:8080/minio/${BUCKET_A_NAME}/hello.txt
+	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" http://localhost:8080/minio/${BUCKET_A_NAME}/hello.txt
 
 curl-test-b:
-	curl -H "X-SECDN-API-KEY: abcd" http://localhost:8080/minio/${BUCKET_B_NAME}/hello.txt
+	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" http://localhost:8080/minio/${BUCKET_B_NAME}/hello.txt
 
 curl-test: curl-test-a curl-test-b list-api-keys
 
 ab-test-apikey: 
-	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: abcd" "http://localhost:8080/test/apikey"
+	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/test/apikey"
 
 ab-test-minio: 
 	@ab -n 100000 -c 50 "http://localhost:8080/test/minio/hello.txt"
 
 ab-test-all: 
-	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: abcd" "http://localhost:8080/test/all/hello.txt"
+	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/test/all/hello.txt"
 
 ab-install:
 	@echo "Installing Apache Benchmark (ab)..."
