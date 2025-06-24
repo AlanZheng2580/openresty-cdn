@@ -111,7 +111,7 @@ end
 
 -- Verify cookie and HMAC signature
 -- Example: Set-Cookie: SECDN-CDN-Cookie=URLPrefix=aHR0cHM6Ly9tZWRpYS5leGFtcGxlLmNvbS92aWRlb3Mv:Expires=1566268009:KeyName=mySigningKey:Signature=0W2xlMlQykL2TG59UZnnHzkxoaw=; Domain=media.example.com; Path=/; Expires=Tue, 20 Aug 2019 02:26:49 GMT; HttpOnly
-function _M.verify_cookie()
+function _M.verify_cookie(api_key_name)
     -- Fetch the signed cookie from the request
     local cookie_value = ngx.var["cookie_secdn-cdn-cookie"]  -- 'SECDN-CDN-Cookie' will be used here (in lowercase)
     if not cookie_value then
@@ -131,7 +131,10 @@ function _M.verify_cookie()
     end
 
     -- Retrieve the secret key for this cookie
-    local api_key_name = cookie_data.KeyName
+    if api_key_name ~= cookie_data.KeyName then
+        ngx.log(ngx.ERR, "[HMAC] Invalid API Key name in cookie")
+        return false, "Invalid API Key name"
+    end
     local api_key = dict:get("api_key_" .. api_key_name)
 
     if not api_key then
