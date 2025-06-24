@@ -43,6 +43,64 @@ local function check_required_fields(cookie_data)
     return true
 end
 
+local function parse_url(url)
+    -- Match scheme://host[:port]/path using regex
+    local m, err = ngx.re.match(url, [[^(https?)://([^:/]+)(?::(\d+))?(/.*)$]], "jo")
+    if not m then
+        return nil, "Invalid URL format"
+    end
+
+    return {
+        scheme = m[1],  -- http or https
+        host = m[2],    -- domain or IP
+        port = m[3],    -- optional port string
+        uri = m[4],     -- URI path (e.g., /video/abc.mp4)
+    }, nil
+end
+
+local function verify_request_matches_prefix(prefix_url)
+    -- Parse the URLPrefix from cookie
+    local parsed_prefix, err = parse_url(prefix_url)
+    if not parsed_prefix then
+        ngx.log(ngx.ERR, "[HMAC] Failed to parse URLPrefix: ", err)
+        return false, "Invalid URLPrefix format"
+    end
+
+    -- Get request components
+    local scheme = ngx.var.scheme          -- e.g., "http"
+    local host = ngx.var.host              -- e.g., "localhost"
+    local port = ngx.var.server_port       -- e.g., "8080"
+    local uri = ngx.var.request_uri        -- e.g., "/test/cookie/ok/abc.jpg"
+
+    -- Compare scheme
+    if scheme ~= parsed_prefix.scheme then
+        ngx.log(ngx.ERR, "[HMAC] Scheme mismatch (expected: ", parsed_prefix.scheme, ", got: ", scheme, ")")
+        return false, "Scheme mismatch"
+    end
+
+    -- Compare host
+    if host ~= parsed_prefix.host then
+        ngx.log(ngx.ERR, "[HMAC] Host mismatch (expected: ", parsed_prefix.host, ", got: ", host, ")")
+        return false, "Host mismatch"
+    end
+
+    -- Compare port (default to 80 or 443 if not present)
+    local default_port = (parsed_prefix.scheme == "http" and "80") or (parsed_prefix.scheme == "https" and "443")
+    local expected_port = parsed_prefix.port or default_port
+    if port ~= expected_port then
+        ngx.log(ngx.ERR, "[HMAC] Port mismatch (expected: ", expected_port, ", got: ", port, ")")
+        return false, "Port mismatch"
+    end
+
+    -- Compare URI prefix
+    if uri:sub(1, #parsed_prefix.uri) ~= parsed_prefix.uri then
+        ngx.log(ngx.ERR, "[HMAC] URI mismatch (expected prefix: ", parsed_prefix.uri, ", got: ", uri, ")")
+        return false, "URI prefix mismatch"
+    end
+
+    return true, "OK"
+end
+
 function _M.load(dir)
     if not dir then
         ngx.log(ngx.ERR, "[API-KEY] Directory not set.")
@@ -176,10 +234,9 @@ function _M.verify_cookie(api_key_name)
     end
 
     -- Validate URL prefix (match URL)
-    local request_url = ngx.var.request_uri
-    if not ngx.re.match(request_url, url_prefix) then
-        ngx.log(ngx.ERR, "[HMAC] URL does not match URLPrefix in cookie")
-        return false, "URL does not match URLPrefix"
+    local ok, err = verify_request_matches_prefix(url_prefix)
+    if not ok then
+        return false, err
     end
 
     ngx.log(ngx.INFO, "[HMAC] Valid cookie for URL: ", request_url)
