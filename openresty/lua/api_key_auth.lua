@@ -124,11 +124,18 @@ function _M.load(dir)
                 dict:delete(k)
                 ngx.log(ngx.NOTICE, "[API-KEY] Removed stale key: ", filename)
             end
+        elseif k:match("^b_api_key_") then
+            local filename = k:sub(11)
+            if not new_keys[filename] then
+                dict:delete(k)
+                ngx.log(ngx.NOTICE, "[API-KEY] Removed stale key: ", filename)
+            end
         end
     end
 
     for filename, key in pairs(new_keys) do
         dict:set("api_key_" .. filename, key)
+        dict:set("b_api_key_" .. filename, hex_to_binary(key))
         ngx.log(ngx.INFO, "[API-KEY] Loaded key file: ", filename)
     end
 
@@ -174,19 +181,16 @@ function _M.verify_cookie(api_key_name)
         ngx.log(ngx.ERR, "[HMAC] Invalid API Key name in cookie")
         return false, "Invalid API Key name"
     end
-    local api_key = dict:get("api_key_" .. api_key_name)
 
-    if not api_key then
+    local b_api_key = dict:get("b_api_key_" .. api_key_name)
+    if not b_api_key then
         ngx.log(ngx.ERR, "[HMAC] No key found for KeyName: ", api_key_name)
         return false, "Invalid API Key"
     end
 
-    -- Convert hex string to binary for HMAC key
-    local hmac_key = hex_to_binary(api_key)
-
     -- Verify HMAC signature
     local data_to_sign = "URLPrefix=" .. cookie_data.URLPrefix .. ":Expires=" .. cookie_data.Expires .. ":KeyName=" .. cookie_data.KeyName
-    local expected_signature = base64.encode_base64url(ngx.hmac_sha1(hmac_key, data_to_sign))
+    local expected_signature = base64.encode_base64url(ngx.hmac_sha1(b_api_key, data_to_sign))
     -- Calculate the required padding length
     local padding_length = 4 - (#expected_signature % 4)
     if padding_length ~= 4 then
@@ -220,7 +224,6 @@ function _M.verify_cookie(api_key_name)
         return false, err
     end
 
-    ngx.log(ngx.INFO, "[HMAC] Valid cookie for URL: ", request_url)
     return true, "OK"
 end
 
