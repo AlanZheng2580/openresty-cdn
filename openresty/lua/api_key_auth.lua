@@ -10,37 +10,20 @@ local function hex_to_binary(hex)
     end))
 end
 
--- Utility function to parse the cookie into key-value pairs
+-- Efficient parser for fixed-format cookie string
+-- e.g.: URLPrefix=aHR0cDovL2xvY2FsaG9zdDo4MDgwL3Rlc3QvY29va2llL29r:Expires=1753055999:KeyName=user-a:Signature=bd1SquQdQhGK4rURuiufrg8m0Vs=
 local function parse_cookie(cookie_value)
-    local cookie_data = {}
-
-    -- Split the cookie string by ":"
-    local segments = {}
-    for segment in string.gmatch(cookie_value, "([^:]+)") do
-        table.insert(segments, segment)
+    local m, err = ngx.re.match(cookie_value, [[^URLPrefix=([^:]+):Expires=(\d+):KeyName=([\w\-]+):Signature=([A-Za-z0-9\-_]+=*)$]], "jo")
+    if not m then
+        return nil, "Invalid cookie format"
     end
 
-    -- Iterate over each segment and split by the first "=" to extract key and value
-    for _, segment in ipairs(segments) do
-        local key, value = string.match(segment, "([%w%-_]+)=(.+)")
-        if key and value then
-            cookie_data[key] = value
-        end
-    end
-
-    return cookie_data
-end
-
--- Check if all required fields are present
-local function check_required_fields(cookie_data)
-    local required_fields = {"URLPrefix", "Expires", "KeyName", "Signature"}
-    for _, field in ipairs(required_fields) do
-        if not cookie_data[field] then
-            ngx.log(ngx.ERR, "[HMAC] Missing required cookie field: " .. field)
-            return false, "Missing required field: " .. field
-        end
-    end
-    return true
+    return {
+        URLPrefix = m[1],
+        Expires   = m[2],
+        KeyName   = m[3],
+        Signature = m[4],
+    }, nil
 end
 
 local function parse_url(url)
@@ -180,12 +163,10 @@ function _M.verify_cookie(api_key_name)
     ngx.log(ngx.INFO, "[HMAC] Cookie: " .. cookie_value)
 
     -- Parse cookie values (URLPrefix, Expires, KeyName, Signature)
-    local cookie_data = parse_cookie(cookie_value)
-
-    -- Check if all required fields are present
-    local valid, err = check_required_fields(cookie_data)
-    if not valid then
-        return false, err
+    local cookie_data, err = parse_cookie(cookie_value)
+    if not cookie_data then
+        ngx.log(ngx.ERR, "[HMAC] Cookie parse error: ", err)
+        return false, "Invalid cookie format"
     end
 
     -- Retrieve the secret key for this cookie
