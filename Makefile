@@ -4,6 +4,7 @@ export
 
 # 預設指令
 .DEFAULT_GOAL := help
+LUA_FILES := $(shell find openresty/lua -type f -name "*.lua")
 
 .PHONY: help
 help:  ## 顯示所有可用指令
@@ -19,7 +20,7 @@ down: ## 停止所有服務
 logs: ## 查看 OpenResty 的 logs
 	docker-compose logs -f openresty
 
-reload:
+reload: check-lua
 	docker-compose exec openresty openresty -s reload
 
 rebuild: ## 重建 OpenResty image
@@ -49,6 +50,18 @@ ab-install:
 	@echo "Installing Apache Benchmark (ab)..."
 	@sudo apt-get update
 	@sudo apt-get install -y apache2-utils
+
+check-lua:
+	@echo "Checking Lua syntax inside Docker..."
+	@for file in $(LUA_FILES); do \
+		echo "  > $$file"; \
+		docker-compose exec openresty  \
+			luajit -b "/opt/bitnami/openresty/nginx/lua/$$(basename $$file)" /dev/null || exit 1; \
+	done
+	@echo "✅ All Lua files passed."
+
+bash:
+	docker-compose exec openresty bash
 
 lua-test: ## 產生curl指令
 	docker exec openresty-cdn_openresty_1 bash -c "cd /opt/bitnami/openresty/nginx/lua/ && TEST_ACCESS_KEY=${BUCKET_ACCESS_KEY} TEST_SECRET_KEY=${BUCKET_SECRET_KEY} TEST_MINIO_HOST=minio:9000 TEST_BUCKET=${BUCKET_A_NAME} TEST_OBJECT=hello.txt resty test_signer.lua"
