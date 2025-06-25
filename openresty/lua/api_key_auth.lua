@@ -46,7 +46,7 @@ local function verify_request_matches_prefix(prefix_url)
     -- Parse the URLPrefix from cookie
     local parsed_prefix, err = parse_url(prefix_url)
     if not parsed_prefix then
-        ngx.log(ngx.ERR, "[HMAC] Failed to parse URLPrefix: ", err)
+        ngx.log(ngx.ERR, "[AUTH] Failed to parse URLPrefix: ", err)
         return false, "Invalid URLPrefix format"
     end
 
@@ -58,13 +58,13 @@ local function verify_request_matches_prefix(prefix_url)
 
     -- Compare scheme
     if scheme ~= parsed_prefix.scheme then
-        ngx.log(ngx.ERR, "[HMAC] Scheme mismatch (expected: ", parsed_prefix.scheme, ", got: ", scheme, ")")
+        ngx.log(ngx.ERR, "[AUTH] Scheme mismatch (expected: ", parsed_prefix.scheme, ", got: ", scheme, ")")
         return false, "Scheme mismatch"
     end
 
     -- Compare host
     if host ~= parsed_prefix.host then
-        ngx.log(ngx.ERR, "[HMAC] Host mismatch (expected: ", parsed_prefix.host, ", got: ", host, ")")
+        ngx.log(ngx.ERR, "[AUTH] Host mismatch (expected: ", parsed_prefix.host, ", got: ", host, ")")
         return false, "Host mismatch"
     end
 
@@ -72,13 +72,13 @@ local function verify_request_matches_prefix(prefix_url)
     local default_port = (parsed_prefix.scheme == "http" and "80") or (parsed_prefix.scheme == "https" and "443")
     local expected_port = parsed_prefix.port or default_port
     if port ~= expected_port then
-        ngx.log(ngx.ERR, "[HMAC] Port mismatch (expected: ", expected_port, ", got: ", port, ")")
+        ngx.log(ngx.ERR, "[AUTH] Port mismatch (expected: ", expected_port, ", got: ", port, ")")
         return false, "Port mismatch"
     end
 
     -- Compare URI prefix
     if uri:sub(1, #parsed_prefix.uri) ~= parsed_prefix.uri then
-        ngx.log(ngx.ERR, "[HMAC] URI mismatch (expected prefix: ", parsed_prefix.uri, ", got: ", uri, ")")
+        ngx.log(ngx.ERR, "[AUTH] URI mismatch (expected prefix: ", parsed_prefix.uri, ", got: ", uri, ")")
         return false, "URI prefix mismatch"
     end
 
@@ -88,14 +88,14 @@ end
 -- Load API keys from disk and cache both plain and binary formats
 function _M.load(dir)
     if not dir then
-        ngx.log(ngx.ERR, "[API-KEY] Directory not set.")
+        ngx.log(ngx.ERR, "[AUTH] Directory not set.")
         return false, "missing directory"
     end
 
-    ngx.log(ngx.INFO, "[API-KEY] loading keys from dir: ", dir)
+    ngx.log(ngx.INFO, "[AUTH] loading keys from dir: ", dir)
     local handle = io.popen("ls -1 " .. dir)
     if not handle then
-        ngx.log(ngx.ERR, "[API-KEY] Failed to list files in ", dir)
+        ngx.log(ngx.ERR, "[AUTH] Failed to list files in ", dir)
         return false, "failed to list dir"
     end
 
@@ -109,10 +109,10 @@ function _M.load(dir)
             if key and #key > 0 then
                 new_keys[filename] = key
             else
-                ngx.log(ngx.ERR, "[API-KEY] Empty or invalid key in file: ", filename)
+                ngx.log(ngx.ERR, "[AUTH] Empty or invalid key in file: ", filename)
             end
         else
-            ngx.log(ngx.ERR, "[API-KEY] Failed to open: ", path)
+            ngx.log(ngx.ERR, "[AUTH] Failed to open: ", path)
         end
     end
     handle:close()
@@ -124,13 +124,13 @@ function _M.load(dir)
             local filename = k:sub(9)
             if not new_keys[filename] then
                 dict:delete(k)
-                ngx.log(ngx.NOTICE, "[API-KEY] Removed stale key: ", filename)
+                ngx.log(ngx.NOTICE, "[AUTH] Removed stale key: ", filename)
             end
         elseif k:match("^b_api_key_") then
             local filename = k:sub(11)
             if not new_keys[filename] then
                 dict:delete(k)
-                ngx.log(ngx.NOTICE, "[API-KEY] Removed stale binary key: ", filename)
+                ngx.log(ngx.NOTICE, "[AUTH] Removed stale binary key: ", filename)
             end
         end
     end
@@ -139,7 +139,7 @@ function _M.load(dir)
     for filename, key in pairs(new_keys) do
         dict:set("api_key_" .. filename, key)
         dict:set("b_api_key_" .. filename, hex_to_binary(key))
-        ngx.log(ngx.INFO, "[API-KEY] Loaded key file: ", filename)
+        ngx.log(ngx.INFO, "[AUTH] Loaded key file: ", filename)
     end
 
     return true, "OK"
@@ -149,12 +149,13 @@ end
 function _M.verify(api_key_name)
     local expected = dict:get("api_key_" .. api_key_name)
     if not expected then
-        ngx.log(ngx.ERR, "[API-KEY] No key found for: ", api_key_name)
+        ngx.log(ngx.ERR, "[AUTH] No key found for: ", api_key_name)
         return false, "API key not configured"
     end
 
     local actual = ngx.req.get_headers()["X-SECDN-API-KEY"]
     if not actual or actual ~= expected then
+        ngx.log(ngx.ERR, "[AUTH] Invalid API Key: ", api_key_name)
         return false, "Invalid API Key"
     end
 
@@ -167,28 +168,28 @@ function _M.verify_cookie(api_key_name)
     -- Fetch the signed cookie from the request
     local cookie_value = ngx.var["cookie_secdn-cdn-cookie"]  -- 'SECDN-CDN-Cookie' will be used here (in lowercase)
     if not cookie_value then
-        ngx.log(ngx.ERR, "[HMAC] Missing cookie: SECDN-CDN-Cookie")
+        ngx.log(ngx.ERR, "[AUTH] Missing cookie: SECDN-CDN-Cookie")
         return false, "Cookie not found"
     end
 
-    ngx.log(ngx.INFO, "[HMAC] Cookie: " .. cookie_value)
+    ngx.log(ngx.INFO, "[AUTH] Cookie: " .. cookie_value)
 
     -- Parse cookie values (URLPrefix, Expires, KeyName, Signature)
     local cookie_data, err = parse_cookie(cookie_value)
     if not cookie_data then
-        ngx.log(ngx.ERR, "[HMAC] Cookie parse error: ", err)
+        ngx.log(ngx.ERR, "[AUTH] Cookie parse error: ", err)
         return false, "Invalid cookie format"
     end
 
     -- Retrieve the secret key for this cookie
     if api_key_name ~= cookie_data.KeyName then
-        ngx.log(ngx.ERR, "[HMAC] Invalid KeyName in cookie")
+        ngx.log(ngx.ERR, "[AUTH] Invalid KeyName in cookie")
         return false, "Invalid API Key name"
     end
 
     local b_api_key = dict:get("b_api_key_" .. api_key_name)
     if not b_api_key then
-        ngx.log(ngx.ERR, "[HMAC] No binary key for: ", api_key_name)
+        ngx.log(ngx.ERR, "[AUTH] No binary key for: ", api_key_name)
         return false, "Invalid binary API Key"
     end
 
@@ -200,22 +201,23 @@ function _M.verify_cookie(api_key_name)
         expected_signature = expected_signature .. string.rep("=", 4 - (#expected_signature % 4))
     end
 
-    ngx.log(ngx.INFO, "[HMAC] expected_signature: " .. expected_signature)
+    ngx.log(ngx.INFO, "[AUTH] expected_signature: " .. expected_signature)
     if cookie_data.Signature ~= expected_signature then
-        ngx.log(ngx.ERR, "[HMAC] Invalid signature in cookie")
+        ngx.log(ngx.ERR, "[AUTH] Invalid signature in cookie")
         return false, "Invalid HMAC signature"
     end
 
     -- Check if the cookie has expired
     local expires = tonumber(cookie_data.Expires)
     if not expires or expires < ngx.time() then
-        ngx.log(ngx.ERR, "[HMAC] Cookie has expired")
+        ngx.log(ngx.ERR, "[AUTH] Cookie has expired")
         return false, "Cookie expired"
     end
 
+    -- Decode URLPrefix from base64
     local url_prefix = ngx.decode_base64(cookie_data.URLPrefix)
     if not url_prefix then
-        ngx.log(ngx.ERR, "[HMAC] Invalid URLPrefix")
+        ngx.log(ngx.ERR, "[AUTH] Invalid URLPrefix in cookie")
         return false, "Invalid URLPrefix"
     end
 

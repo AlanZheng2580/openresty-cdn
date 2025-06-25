@@ -8,16 +8,21 @@ local access_key  = ngx.var.access_key
 -- local secret_key  = ngx.var.secret_key
 local secret_key  = ngx.shared.secrets:get("MINIO_SECRET_KEY")
 if not secret_key then
-    ngx.log(ngx.ERR, "Nosecret key found in shared dict!")
-    return ngx.status(500)
+    ngx.log(ngx.ERR, "[SIGNER] No secret key found in shared dict!")
+    ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+    ngx.say("No secret key found in shared dict!")
+    return ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
 end
 local bucket      = ngx.var.bucket_name
 local object      = ngx.var.object_key
 
 if not (host and access_key and secret_key and bucket and object) then
+    ngx.log(ngx.ERR, "[SIGNER] Missing required parameters.")
+    ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
     ngx.say("Missing required parameters.")
-    return ngx.status(500)
+    return ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
 end
+ngx.log(ngx.INFO, "access_key: "..access_key)
 
 local sig = signer.build{
     schema = schema,
