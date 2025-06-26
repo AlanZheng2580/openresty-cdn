@@ -69,12 +69,13 @@ local function verify_request_matches_prefix(prefix_url)
     end
 
     -- Compare port (default to 80 or 443 if not present)
-    local default_port = (parsed_prefix.scheme == "http" and "80") or (parsed_prefix.scheme == "https" and "443")
-    local expected_port = parsed_prefix.port or default_port
-    if port ~= expected_port then
-        ngx.log(ngx.ERR, "[AUTH] Port mismatch (expected: ", expected_port, ", got: ", port, ")")
-        return false, "Port mismatch"
-    end
+    -- Port comparison is skipped because in Kubernetes
+    -- local default_port = (parsed_prefix.scheme == "http" and "80") or (parsed_prefix.scheme == "https" and "443")
+    -- local expected_port = parsed_prefix.port or default_port
+    -- if port ~= expected_port then
+    --     ngx.log(ngx.ERR, "[AUTH] Port mismatch (expected: ", expected_port, ", got: ", port, ")")
+    --     return false, "Port mismatch"
+    -- end
 
     -- Compare URI prefix
     if uri:sub(1, #parsed_prefix.uri) ~= parsed_prefix.uri then
