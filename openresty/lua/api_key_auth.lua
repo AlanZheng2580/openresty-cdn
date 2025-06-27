@@ -68,8 +68,8 @@ local function verify_request_matches_prefix(prefix_url)
         return false, "Host mismatch"
     end
 
-    -- Compare port (default to 80 or 443 if not present)
-    -- Port comparison is skipped because in Kubernetes
+    -- [Disable] Compare port (default to 80 or 443 if not present)
+    -- Port comparison is skipped because the service might be behind a gateway
     -- local default_port = (parsed_prefix.scheme == "http" and "80") or (parsed_prefix.scheme == "https" and "443")
     -- local expected_port = parsed_prefix.port or default_port
     -- if port ~= expected_port then
