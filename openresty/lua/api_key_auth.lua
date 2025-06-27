@@ -182,6 +182,26 @@ function _M.verify_cookie(api_key_name)
         return false, "Invalid cookie format"
     end
 
+    -- Check if the cookie has expired
+    local expires = tonumber(cookie_data.Expires)
+    if not expires or expires < ngx.time() then
+        ngx.log(ngx.ERR, "[AUTH] Cookie has expired")
+        return false, "Cookie expired"
+    end
+
+    -- Decode URLPrefix from base64
+    local url_prefix = ngx.decode_base64(cookie_data.URLPrefix)
+    if not url_prefix then
+        ngx.log(ngx.ERR, "[AUTH] Invalid URLPrefix in cookie")
+        return false, "Invalid URLPrefix"
+    end
+
+    -- Validate URL prefix (match URL)
+    local ok, err = verify_request_matches_prefix(url_prefix)
+    if not ok then
+        return false, err
+    end
+
     -- Retrieve the secret key for this cookie
     if api_key_name ~= cookie_data.KeyName then
         ngx.log(ngx.ERR, "[AUTH] Invalid KeyName in cookie")
@@ -206,26 +226,6 @@ function _M.verify_cookie(api_key_name)
     if cookie_data.Signature ~= expected_signature then
         ngx.log(ngx.ERR, "[AUTH] Invalid signature in cookie")
         return false, "Invalid HMAC signature"
-    end
-
-    -- Check if the cookie has expired
-    local expires = tonumber(cookie_data.Expires)
-    if not expires or expires < ngx.time() then
-        ngx.log(ngx.ERR, "[AUTH] Cookie has expired")
-        return false, "Cookie expired"
-    end
-
-    -- Decode URLPrefix from base64
-    local url_prefix = ngx.decode_base64(cookie_data.URLPrefix)
-    if not url_prefix then
-        ngx.log(ngx.ERR, "[AUTH] Invalid URLPrefix in cookie")
-        return false, "Invalid URLPrefix"
-    end
-
-    -- Validate URL prefix (match URL)
-    local ok, err = verify_request_matches_prefix(url_prefix)
-    if not ok then
-        return false, err
     end
 
     return true, "OK"
