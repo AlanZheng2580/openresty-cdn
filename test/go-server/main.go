@@ -61,7 +61,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Generate the curl command
-		curlCommand := fmt.Sprintf(`curl -v -H "Cookie: SECDN-CDN-Cookie=%s" http://localhost:8080/test/cookie/ok/`, signedCookie)
+		curlCommand := fmt.Sprintf(`curl -v -H "Cookie: SECDN-CDN-Cookie=%s" %s`, signedCookie, urlPrefix)
 
 		// Set the cookie in the response
 		http.SetCookie(w, &http.Cookie{
@@ -159,7 +159,7 @@ const homePageTemplate = `
 
 	<h2>Redirect to Test Page</h2>
 	<form action="" method="GET" onsubmit="window.open(document.getElementById('urlInput').value, '_blank'); return false;">
-		<input type="text" id="urlInput" name="url" value="http://localhost:8080/test/cookie/ok" style="width: 500px;"/><br>
+		<input type="text" id="urlInput" name="url" value="{{.URLPrefix}}" style="width: 500px;"/><br>
 		<button type="submit">Go to Test Page with Cookie</button>
 	</form>
     {{end}}
