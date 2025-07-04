@@ -59,7 +59,7 @@ ab-test-minio:
 	@ab -n 100000 -c 50 "http://localhost:8080/test/minio/hello.txt"
 
 ab-test-all: 
-	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/minio/${BUCKET_A_NAME}/hello.txt
+	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/minio/${BUCKET_A_NAME}/hello.txt"
 
 ab-install:
 	@echo "Installing Apache Benchmark (ab)..."

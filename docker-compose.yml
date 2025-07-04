@@ -49,3 +49,8 @@ services:
       - minio
       - mc
       - httpbin
+      - js-auth
+  js-auth:
+    build: ./test/js-auth
+    ports:
+      - "2345:2345"
