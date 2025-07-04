@@ -4,6 +4,9 @@
 # Ignore MinIO persistent data
 minio/data/
 
+# Ignore Nodejs packages
+node_modules/
+
 # Lua cache / temp files
 *.luac
 *.swp

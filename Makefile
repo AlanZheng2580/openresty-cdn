@@ -28,14 +28,29 @@ rebuild: ## 重建 OpenResty image
 
 list-api-keys:
 	curl -H "X-SECDN-API-KEY: 01234567890123456789012345678901" http://localhost:8080/api/keys
-	
+
+curl-test-apiauth:
+	curl http://localhost:8080/test/apiauth
+
+curl-test-cookie:
+	curl -H "Cookie: SECDN-CDN-Cookie=URLPrefix=aHR0cDovL2xvY2FsaG9zdDo4MDgwL3Rlc3QvY29va2ll:Expires=2065996799:KeyName=user-a:Signature=vr0v1Gj7UoBUQBUjUG8heiHsc7o=" http://localhost:8080/test/cookie
+
+curl-test-apikey:
+	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" http://localhost:8080/test/apikey
+
 curl-test-a:
 	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" http://localhost:8080/minio/${BUCKET_A_NAME}/hello.txt
 
 curl-test-b:
 	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" http://localhost:8080/minio/${BUCKET_B_NAME}/hello.txt
 
-curl-test: curl-test-a curl-test-b list-api-keys
+curl-test: curl-test-apiauth curl-test-cookie curl-test-apikey curl-test-apikey curl-test-a curl-test-b list-api-keys
+
+ab-test-apiauth: 
+	@ab -n 100000 -c 50 "http://localhost:8080/test/apiauth"
+
+ab-test-cookie: 
+	@ab -n 100000 -c 50 -H "Cookie: SECDN-CDN-Cookie=URLPrefix=aHR0cDovL2xvY2FsaG9zdDo4MDgwL3Rlc3QvY29va2ll:Expires=2065996799:KeyName=user-a:Signature=vr0v1Gj7UoBUQBUjUG8heiHsc7o=" "http://localhost:8080/test/cookie"
 
 ab-test-apikey: 
 	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/test/apikey"
@@ -44,7 +59,7 @@ ab-test-minio:
 	@ab -n 100000 -c 50 "http://localhost:8080/test/minio/hello.txt"
 
 ab-test-all: 
-	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/test/all/hello.txt"
+	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/minio/${BUCKET_A_NAME}/hello.txt
 
 ab-install:
 	@echo "Installing Apache Benchmark (ab)..."
