@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Waiting Room</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 90%;
+        }
+        h1 {
+            color: #0056b3;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #0056b3;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 30px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>您已進入虛擬排隊室</h1>
+        <p>感謝您的耐心等候。目前網站流量較大，為確保服務品質，您已進入排隊序列。</p>
+        <p>請勿關閉或重新整理此頁面，系統將在輪到您時自動引導您進入主站。</p>
+        <div class="loader"></div>
+        <p>預計等待時間：<span id="estimated-time">正在計算中...</span></p>
+        <p>您目前排在第 <span id="queue-position">...</span> 位。</p>
+        <div class="footer">
+            <p>感謝您的理解與支持。</p>
+        </div>
+    </div>
+
+    <script>
+        const queuePositionElement = document.getElementById('queue-position');
+        const estimatedTimeElement = document.getElementById('estimated-time');
+        const checkInterval = 5000; // 5 seconds
+
+        async function checkQueueStatus() {
+            try {
+                // This endpoint will be handled by Nginx/Lua to check the user's status
+                const response = await fetch('/waiting_room_status');
+                const data = await response.json();
+
+                if (data.status === 'ready') {
+                    window.location.href = data.redirect_url; // Redirect to main site
+                } else {
+                    queuePositionElement.textContent = data.position || '...';
+                    estimatedTimeElement.textContent = data.estimated_time || '正在計算中...';
+                }
+            } catch (error) {
+                console.error('Error checking queue status:', error);
+                queuePositionElement.textContent = '無法獲取';
+                estimatedTimeElement.textContent = '無法獲取';
+            }
+        }
+
+        // Initial check and then set interval
+        checkQueueStatus();
+        setInterval(checkQueueStatus, checkInterval);
+    </script>
+</body>
+</html>
