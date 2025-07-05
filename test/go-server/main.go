@@ -1,13 +1,18 @@
 package main
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -22,8 +27,38 @@ type PageData struct {
 }
 
 func main() {
-	http.HandleFunc("/", homeHandler)
-	http.ListenAndServe(":1234", nil)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", homeHandler)
+
+	server := &http.Server{
+		Addr:    ":1234",
+		Handler: mux,
+	}
+
+	// 打印服務啟動訊息
+	log.Println("listening on port 1234")
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	<-stop
+
+	log.Println("⚠️  Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Graceful shutdown failed: %v", err)
+	}
+
+	log.Println("✅ Server gracefully stopped")
 }
 
 // homeHandler handles the form on the homepage.
