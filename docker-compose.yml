@@ -1,6 +1,14 @@
 version: "3.3"
 
 services:
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/data:/data
+    command: redis-server --save 60 1 --loglevel warning
+
   minio:
     image: minio/minio:RELEASE.2025-04-08T15-41-24Z-cpuv1
     environment:
@@ -42,14 +50,20 @@ services:
       - ./openresty/conf/nginx.conf:/opt/bitnami/openresty/nginx/conf/nginx.conf
       - ./openresty/apikeys:${SECDN_APIKEY_DIR}
       - ./openresty/lua:/opt/bitnami/openresty/nginx/lua
+      - ./openresty/html:/opt/bitnami/openresty/nginx/html
     environment:
       - SECDN_APIKEY_DIR=${SECDN_APIKEY_DIR}
       - MINIO_SECRET_KEY=${BUCKET_SECRET_KEY}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - VWR_MAX_USERS=10
+      - VWR_SESSION_TIMEOUT=5
     depends_on:
       - minio
       - mc
       - httpbin
       - js-auth
+      - redis
   js-auth:
     build: ./test/js-auth
     ports:

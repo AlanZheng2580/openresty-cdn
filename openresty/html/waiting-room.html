@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Waiting Room</title>
+    <script>
+        function checkStatus() {
+            fetch('/waiting-room/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'ready') {
+                        window.location.href = '/'; // Redirect to main site
+                    } else {
+                        setTimeout(checkStatus, 5000); // Check again in 5 seconds
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking status:', error);
+                    setTimeout(checkStatus, 5000); // Retry on error
+                });
+        }
+        // Start checking status when the page loads
+        window.onload = checkStatus;
+    </script>
+</head>
+<body>
+    <h1>Please wait</h1>
+    <p>The site is currently busy. You have been placed in a queue.</p>
+    <p>This page will automatically update when you can enter.</p>
+</body>
+</html>

@@ -18,7 +18,7 @@ down: ## 停止所有服務
 	docker-compose down
 
 logs: ## 查看 OpenResty 的 logs
-	docker-compose logs -f openresty
+	docker-compose logs -f --tail 100 openresty
 
 reload: check-lua
 	docker-compose exec openresty openresty -s reload
