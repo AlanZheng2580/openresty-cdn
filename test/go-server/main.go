@@ -61,7 +61,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Generate the curl command
-		curlCommand := fmt.Sprintf(`curl -v -H "Cookie: SECDN-CDN-Cookie=%s" http://localhost:8080/test/cookie/ok/`, signedCookie)
+		curlCommand := fmt.Sprintf(`curl -v -H "Cookie: SECDN-CDN-Cookie=%s" %s`, signedCookie, urlPrefix)
 
 		// Set the cookie in the response
 		http.SetCookie(w, &http.Cookie{
@@ -95,6 +95,12 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // signCookie creates a signed cookie for an endpoint served by SECDN CDN.
+//
+// - urlPrefix must start with "https://" and should include the path prefix
+// for which the cookie will authorize access to.
+// - key should be in raw form (not base64url-encoded) which is
+// 16-bytes long.
+// - keyName must match a key added to the backend service or bucket.
 func signCookie(urlPrefix, keyName string, key []byte, expiration time.Time) (string, error) {
 	encodedURLPrefix := base64.URLEncoding.EncodeToString([]byte(urlPrefix))
 	input := fmt.Sprintf("URLPrefix=%s:Expires=%d:KeyName=%s",
@@ -124,20 +130,20 @@ const homePageTemplate = `
 <body>
     <h1>SECDN CDN Cookie Generator</h1>
     <form method="POST" action="/">
-        <label for="urlPrefix">URL Prefix (e.g., /test/cookie/ok):</label><br>
-        <input type="text" id="urlPrefix" name="urlPrefix" value="{{.URLPrefix}}" required><br><br>
+        <label for="urlPrefix">URL Prefix (e.g., http://localhost:8080/test/cookie/ok):</label><br>
+        <input type="text" id="urlPrefix" name="urlPrefix" value="{{.URLPrefix}}" style="width: 500px;" required><br><br>
 
         <label for="keyName">Key Name (e.g., user-a):</label><br>
-        <input type="text" id="keyName" name="keyName" value="{{.KeyName}}" required><br><br>
+        <input type="text" id="keyName" name="keyName" value="{{.KeyName}}" style="width: 500px;" required><br><br>
 
         <label for="key">Key (16-byte hex string)(e.g., 58028419ac995b94cc7750b7c5e3a117):</label><br>
-        <input type="text" id="key" name="key" value="{{.Key}}" required><br><br>
+        <input type="text" id="key" name="key" value="{{.Key}}" style="width: 500px;" required><br><br>
 
         <label for="expiration">Expiration (e.g., 2025-06-20T23:59:59Z):</label><br>
-        <input type="text" id="expiration" name="expiration" value="{{.Expiration}}" required><br><br>
+        <input type="text" id="expiration" name="expiration" value="{{.Expiration}}" style="width: 500px;" required><br><br>
 
 		<label for="domain">Domain (e.g., localhost):</label><br>
-        <input type="text" id="domain" name="domain" value="{{.Domain}}" required><br><br>
+        <input type="text" id="domain" name="domain" value="{{.Domain}}" style="width: 500px;" required><br><br>
 
         <button type="submit">Generate/Set Cookie</button>
     </form>
@@ -153,7 +159,7 @@ const homePageTemplate = `
 
 	<h2>Redirect to Test Page</h2>
 	<form action="" method="GET" onsubmit="window.open(document.getElementById('urlInput').value, '_blank'); return false;">
-		<input type="text" id="urlInput" name="url" value="http://localhost:8080/test/cookie/ok" style="width: 80%;"/><br>
+		<input type="text" id="urlInput" name="url" value="{{.URLPrefix}}" style="width: 500px;"/><br>
 		<button type="submit">Go to Test Page with Cookie</button>
 	</form>
     {{end}}

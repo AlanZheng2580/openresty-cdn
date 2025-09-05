@@ -3,56 +3,100 @@ local dict = ngx.shared.secrets
 local resty_string = require "resty.string"
 local base64 = require "ngx.base64"
 
--- Function to convert a hex string to binary (raw bytes)
+-- Convert hex string (e.g. "abcdef1234") to binary string (raw bytes)
 local function hex_to_binary(hex)
     return (hex:gsub('..', function (cc)
         return string.char(tonumber(cc, 16))
     end))
 end
 
--- Utility function to parse the cookie into key-value pairs
+-- Fast, fixed-format cookie parser
+-- e.g.: URLPrefix=aHR0cDovL2xvY2FsaG9zdDo4MDgwL3Rlc3QvY29va2llL29r:Expires=1753055999:KeyName=user-a:Signature=bd1SquQdQhGK4rURuiufrg8m0Vs=
 local function parse_cookie(cookie_value)
-    local cookie_data = {}
-
-    -- Split the cookie string by ":"
-    local segments = {}
-    for segment in string.gmatch(cookie_value, "([^:]+)") do
-        table.insert(segments, segment)
+    local m, err = ngx.re.match(cookie_value, [[^URLPrefix=([^:]+):Expires=(\d+):KeyName=([\w\-]+):Signature=([A-Za-z0-9\-_]+=*)$]], "jo")
+    if not m then
+        return nil, "Invalid cookie format"
     end
 
-    -- Iterate over each segment and split by the first "=" to extract key and value
-    for _, segment in ipairs(segments) do
-        local key, value = string.match(segment, "([%w%-_]+)=(.+)")
-        if key and value then
-            cookie_data[key] = value
-        end
-    end
-
-    return cookie_data
+    return {
+        URLPrefix = m[1],
+        Expires   = m[2],
+        KeyName   = m[3],
+        Signature = m[4],
+    }, nil
 end
 
--- Check if all required fields are present
-local function check_required_fields(cookie_data)
-    local required_fields = {"URLPrefix", "Expires", "KeyName", "Signature"}
-    for _, field in ipairs(required_fields) do
-        if not cookie_data[field] then
-            ngx.log(ngx.ERR, "[HMAC] Missing required cookie field: " .. field)
-            return false, "Missing required field: " .. field
-        end
+-- Parse a full URL into its components
+local function parse_url(url)
+    local m, err = ngx.re.match(url, [[^(https?)://([^:/]+)(?::(\d+))?(/.*)$]], "jo")
+    if not m then
+        return nil, "Invalid URL format"
     end
-    return true
+
+    return {
+        scheme = m[1],  -- http or https
+        host = m[2],    -- domain or IP
+        port = m[3],    -- optional port string
+        uri = m[4],     -- URI path (e.g., /video/abc.mp4)
+    }, nil
 end
 
+-- Compare current request against the signed URLPrefix
+local function verify_request_matches_prefix(prefix_url)
+    -- Parse the URLPrefix from cookie
+    local parsed_prefix, err = parse_url(prefix_url)
+    if not parsed_prefix then
+        ngx.log(ngx.ERR, "[AUTH] Failed to parse URLPrefix: ", err)
+        return false, "Invalid URLPrefix format"
+    end
+
+    -- Get request components
+    local scheme = ngx.var.scheme          -- e.g., "http"
+    local host = ngx.var.host              -- e.g., "localhost"
+    local port = ngx.var.server_port       -- e.g., "8080"
+    local uri = ngx.var.request_uri        -- e.g., "/test/cookie/ok/abc.jpg"
+
+    -- Compare scheme
+    if scheme ~= parsed_prefix.scheme then
+        ngx.log(ngx.ERR, "[AUTH] Scheme mismatch (expected: ", parsed_prefix.scheme, ", got: ", scheme, ")")
+        return false, "Scheme mismatch"
+    end
+
+    -- Compare host
+    if host ~= parsed_prefix.host then
+        ngx.log(ngx.ERR, "[AUTH] Host mismatch (expected: ", parsed_prefix.host, ", got: ", host, ")")
+        return false, "Host mismatch"
+    end
+
+    -- [Disable] Compare port (default to 80 or 443 if not present)
+    -- Port comparison is skipped because the service might be behind a gateway
+    -- local default_port = (parsed_prefix.scheme == "http" and "80") or (parsed_prefix.scheme == "https" and "443")
+    -- local expected_port = parsed_prefix.port or default_port
+    -- if port ~= expected_port then
+    --     ngx.log(ngx.ERR, "[AUTH] Port mismatch (expected: ", expected_port, ", got: ", port, ")")
+    --     return false, "Port mismatch"
+    -- end
+
+    -- Compare URI prefix
+    if uri:sub(1, #parsed_prefix.uri) ~= parsed_prefix.uri then
+        ngx.log(ngx.ERR, "[AUTH] URI mismatch (expected prefix: ", parsed_prefix.uri, ", got: ", uri, ")")
+        return false, "URI prefix mismatch"
+    end
+
+    return true, "OK"
+end
+
+-- Load API keys from disk and cache both plain and binary formats
 function _M.load(dir)
     if not dir then
-        ngx.log(ngx.ERR, "[API-KEY] Directory not set.")
+        ngx.log(ngx.ERR, "[AUTH] Directory not set.")
         return false, "missing directory"
     end
 
-    ngx.log(ngx.INFO, "[API-KEY] loading keys from dir: ", dir)
+    ngx.log(ngx.INFO, "[AUTH] loading keys from dir: ", dir)
     local handle = io.popen("ls -1 " .. dir)
     if not handle then
-        ngx.log(ngx.ERR, "[API-KEY] Failed to list files in ", dir)
+        ngx.log(ngx.ERR, "[AUTH] Failed to list files in ", dir)
         return false, "failed to list dir"
     end
 
@@ -66,123 +110,128 @@ function _M.load(dir)
             if key and #key > 0 then
                 new_keys[filename] = key
             else
-                ngx.log(ngx.ERR, "[API-KEY] Empty or invalid key in file: ", filename)
+                ngx.log(ngx.ERR, "[AUTH] Empty or invalid key in file: ", filename)
             end
         else
-            ngx.log(ngx.ERR, "[API-KEY] Failed to open: ", path)
+            ngx.log(ngx.ERR, "[AUTH] Failed to open: ", path)
         end
     end
     handle:close()
 
-    local keys_to_remove = {}
+    -- Remove outdated keys from dict
     local existing_keys = dict:get_keys(0)
     for _, k in ipairs(existing_keys) do
         if k:match("^api_key_") then
             local filename = k:sub(9)
             if not new_keys[filename] then
                 dict:delete(k)
-                ngx.log(ngx.NOTICE, "[API-KEY] Removed stale key: ", filename)
+                ngx.log(ngx.NOTICE, "[AUTH] Removed stale key: ", filename)
+            end
+        elseif k:match("^b_api_key_") then
+            local filename = k:sub(11)
+            if not new_keys[filename] then
+                dict:delete(k)
+                ngx.log(ngx.NOTICE, "[AUTH] Removed stale binary key: ", filename)
             end
         end
     end
 
+    -- Store both raw hex and binary
     for filename, key in pairs(new_keys) do
         dict:set("api_key_" .. filename, key)
-        ngx.log(ngx.INFO, "[API-KEY] Loaded key file: ", filename)
+        dict:set("b_api_key_" .. filename, hex_to_binary(key))
+        ngx.log(ngx.INFO, "[AUTH] Loaded key file: ", filename)
     end
 
     return true, "OK"
 end
 
+-- Header-based API key verification
 function _M.verify(api_key_name)
     local expected = dict:get("api_key_" .. api_key_name)
     if not expected then
-        ngx.log(ngx.ERR, "[API-KEY] No key found for: ", api_key_name)
+        ngx.log(ngx.ERR, "[AUTH] No key found for: ", api_key_name)
         return false, "API key not configured"
     end
 
     local actual = ngx.req.get_headers()["X-SECDN-API-KEY"]
     if not actual or actual ~= expected then
+        ngx.log(ngx.ERR, "[AUTH] Invalid API Key: ", api_key_name)
         return false, "Invalid API Key"
     end
 
     return true, "OK"
 end
 
--- Verify cookie and HMAC signature
+-- Cookie-based HMAC signature verification
 -- Example: Set-Cookie: SECDN-CDN-Cookie=URLPrefix=aHR0cHM6Ly9tZWRpYS5leGFtcGxlLmNvbS92aWRlb3Mv:Expires=1566268009:KeyName=mySigningKey:Signature=0W2xlMlQykL2TG59UZnnHzkxoaw=; Domain=media.example.com; Path=/; Expires=Tue, 20 Aug 2019 02:26:49 GMT; HttpOnly
-function _M.verify_cookie()
+function _M.verify_cookie(api_key_name)
     -- Fetch the signed cookie from the request
     local cookie_value = ngx.var["cookie_secdn-cdn-cookie"]  -- 'SECDN-CDN-Cookie' will be used here (in lowercase)
     if not cookie_value then
-        ngx.log(ngx.ERR, "[HMAC] Missing cookie: SECDN-CDN-Cookie")
+        ngx.log(ngx.ERR, "[AUTH] Missing cookie: SECDN-CDN-Cookie")
         return false, "Cookie not found"
     end
 
-    ngx.log(ngx.INFO, "[HMAC] Cookie: " .. cookie_value)
+    ngx.log(ngx.INFO, "[AUTH] Cookie: " .. cookie_value)
 
     -- Parse cookie values (URLPrefix, Expires, KeyName, Signature)
-    local cookie_data = parse_cookie(cookie_value)
-
-    -- Check if all required fields are present
-    local valid, err = check_required_fields(cookie_data)
-    if not valid then
-        return false, err
-    end
-
-    -- Retrieve the secret key for this cookie
-    local api_key_name = cookie_data.KeyName
-    local api_key = dict:get("api_key_" .. api_key_name)
-
-    if not api_key then
-        ngx.log(ngx.ERR, "[HMAC] No key found for KeyName: ", api_key_name)
-        return false, "Invalid API Key"
-    end
-
-    -- Convert hex string to binary for HMAC key
-    local hmac_key = hex_to_binary(api_key)
-
-    -- Verify HMAC signature
-    local data_to_sign = "URLPrefix=" .. cookie_data.URLPrefix .. ":Expires=" .. cookie_data.Expires .. ":KeyName=" .. cookie_data.KeyName
-    local expected_signature = base64.encode_base64url(ngx.hmac_sha1(hmac_key, data_to_sign))
-    -- Calculate the required padding length
-    local padding_length = 4 - (#expected_signature % 4)
-    if padding_length ~= 4 then
-        expected_signature = expected_signature .. string.rep("=", padding_length)
-    end
-
-    ngx.log(ngx.INFO, "[HMAC] expected_signature: " .. expected_signature)
-
-    if cookie_data.Signature ~= expected_signature then
-        ngx.log(ngx.ERR, "[HMAC] Invalid signature in cookie")
-        return false, "Invalid HMAC signature"
+    local cookie_data, err = parse_cookie(cookie_value)
+    if not cookie_data then
+        ngx.log(ngx.ERR, "[AUTH] Cookie parse error: ", err)
+        return false, "Invalid cookie format"
     end
 
     -- Check if the cookie has expired
     local expires = tonumber(cookie_data.Expires)
     if not expires or expires < ngx.time() then
-        ngx.log(ngx.ERR, "[HMAC] Cookie has expired")
+        ngx.log(ngx.ERR, "[AUTH] Cookie has expired")
         return false, "Cookie expired"
     end
 
     -- Decode URLPrefix from base64
     local url_prefix = ngx.decode_base64(cookie_data.URLPrefix)
     if not url_prefix then
-        ngx.log(ngx.ERR, "[HMAC] Invalid URLPrefix in cookie")
+        ngx.log(ngx.ERR, "[AUTH] Invalid URLPrefix in cookie")
         return false, "Invalid URLPrefix"
     end
 
     -- Validate URL prefix (match URL)
-    local request_url = ngx.var.request_uri
-    if not ngx.re.match(request_url, url_prefix) then
-        ngx.log(ngx.ERR, "[HMAC] URL does not match URLPrefix in cookie")
-        return false, "URL does not match URLPrefix"
+    local ok, err = verify_request_matches_prefix(url_prefix)
+    if not ok then
+        return false, err
     end
 
-    ngx.log(ngx.INFO, "[HMAC] Valid cookie for URL: ", request_url)
+    -- Retrieve the secret key for this cookie
+    if api_key_name ~= cookie_data.KeyName then
+        ngx.log(ngx.ERR, "[AUTH] Invalid KeyName in cookie")
+        return false, "Invalid API Key name"
+    end
+
+    local b_api_key = dict:get("b_api_key_" .. api_key_name)
+    if not b_api_key then
+        ngx.log(ngx.ERR, "[AUTH] No binary key for: ", api_key_name)
+        return false, "Invalid binary API Key"
+    end
+
+    -- Verify HMAC signature
+    local data_to_sign = "URLPrefix=" .. cookie_data.URLPrefix .. ":Expires=" .. cookie_data.Expires .. ":KeyName=" .. cookie_data.KeyName
+    local expected_signature = base64.encode_base64url(ngx.hmac_sha1(b_api_key, data_to_sign))
+    -- Calculate the required padding length
+    if #expected_signature % 4 ~= 0 then
+        expected_signature = expected_signature .. string.rep("=", 4 - (#expected_signature % 4))
+    end
+
+    ngx.log(ngx.INFO, "[AUTH] expected_signature: " .. expected_signature)
+    if cookie_data.Signature ~= expected_signature then
+        ngx.log(ngx.ERR, "[AUTH] Invalid signature in cookie")
+        return false, "Invalid HMAC signature"
+    end
+
     return true, "OK"
 end
 
+-- List all currently loaded API key names
 function _M.list()
     local keys = dict:get_keys(0)
     local result = {}
