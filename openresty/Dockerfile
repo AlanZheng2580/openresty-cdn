@@ -25,4 +25,6 @@ if [ -z "$MINIO_SECRET_KEY" ]; then\n\
 fi\n\
 ' /opt/bitnami/scripts/openresty/entrypoint.sh
 
+COPY --chown=1001:1001 html /opt/bitnami/openresty/nginx/html
+
 USER 1001

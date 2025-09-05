@@ -50,6 +50,11 @@ services:
       - mc
       - httpbin
       - js-auth
+      - redis
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
   js-auth:
     build: ./test/js-auth
     ports:
