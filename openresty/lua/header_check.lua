@@ -8,7 +8,7 @@ if method == "OPTIONS" then
 end
 
 local api_key_name = ngx.var.api_key_name
-local ok, err = auth.verify(api_key_name)
+local ok, err = auth.verify_header_signature(api_key_name)
 if not ok then
     -- On failure, add CORS headers and exit with 401
     cors.add_headers()
