@@ -13,7 +13,7 @@ end
 -- Fast, fixed-format token parser
 -- e.g.: URLPrefix=aHR0cDovL2xvY2FsaG9zdDo4MDgwL3Rlc3QvY29va2llL29r:Expires=1753055999:KeyName=user-a:Signature=bd1SquQdQhGK4rURuiufrg8m0Vs=
 local function parse_token(token_value)
-    local m, err = ngx.re.match(token_value, [[^URLPrefix=([^:]+):Expires=(\d+):KeyName=([\w\-]+):Signature=([A-Za-z0-9\-_]+=*)$]], "jox")
+    local m, err = ngx.re.match(token_value, [[^URLPrefix=([^:]+):Expires=(\d+):KeyName=([\w\-]+):Signature=([A-Za-z0-9\-_]+=*)$]], "jo")
     if not m then
         return nil, "Invalid token format"
     end
