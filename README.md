@@ -43,6 +43,50 @@
     ```
 ---
 
+## 啟用本機 HTTPS (SSL)
+
+本專案支援透過 HTTPS 進行本地開發，但需要手動產生並信任本機的 SSL 憑證。我們使用 `mkcert` 這個工具來簡化此流程。
+
+### 1. 安裝 mkcert
+
+請根據您的作業系統選擇安裝方式：
+
+- **macOS (使用 [Homebrew](https://brew.sh/))**
+  ```bash
+  brew install mkcert
+  ```
+
+- **Linux (以 Debian/Ubuntu 為例)**
+  首先安裝 `certutil` 工具：
+  ```bash
+  sudo apt install libnss3-tools
+  wget "$(curl -s https://api.github.com/repos/FiloSottile/mkcert/releases/latest | grep browser_download_url | grep 'linux-amd64' | cut -d '"' -f 4)" -O mkcert
+  chmod +x ./mkcert
+  sudo mv ./mkcert /usr/local/bin/
+  mkcert --version
+  ```
+
+### 2. 安裝本機 CA (Certificate Authority)
+
+安裝完 `mkcert` 後，執行以下指令來建立並安裝一個本地的憑證頒發機構。這會讓您本機產生的憑證被瀏覽器自動信任。
+
+```bash
+mkcert -install
+```
+(此步驟可能需要輸入您的系統密碼)
+
+### 3. 產生憑證檔案
+
+進入專案根目錄，執行以下指令來為 `localhost` 產生憑證。
+
+```bash
+mkcert -key-file openresty/certs/localhost-key.pem -cert-file openresty/certs/localhost.pem localhost 127.0.0.1 ::1
+```
+
+完成後，`openresty/certs` 目錄下就會有 `localhost.pem` 和 `localhost-key.pem` 兩個檔案。接著您就可以透過 `https://localhost:8443` 存取服務了。
+
+---
+
 ## 🛠 可用的 Make 指令
 
 | 指令             | 說明 |
