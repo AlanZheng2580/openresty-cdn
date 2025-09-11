@@ -38,8 +38,10 @@ services:
     build: ./openresty
     ports:
       - "8080:8080"
+      - "8443:8443"
     volumes:
       - ./openresty/conf/nginx.conf:/opt/bitnami/openresty/nginx/conf/nginx.conf
+      - ./openresty/certs:/opt/bitnami/openresty/nginx/conf/certs
       - ./openresty/apikeys:${SECDN_APIKEY_DIR}
       - ./openresty/lua:/opt/bitnami/openresty/nginx/lua
     environment:
