@@ -57,8 +57,11 @@
   ```
 
 - **Linux (以 Debian/Ubuntu 為例)**
-  首先安裝 `certutil` 工具：
+  首先安裝 `mkcert` 工具：
   ```bash
+  #ubuntu 22.04
+  sudo apt install mkcert
+  # ubuntu 20.04
   sudo apt install libnss3-tools
   wget "$(curl -s https://api.github.com/repos/FiloSottile/mkcert/releases/latest | grep browser_download_url | grep 'linux-amd64' | cut -d '"' -f 4)" -O mkcert
   chmod +x ./mkcert
