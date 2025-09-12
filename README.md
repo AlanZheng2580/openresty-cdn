@@ -105,12 +105,48 @@ mkcert -key-file openresty/certs/localhost-key.pem -cert-file openresty/certs/lo
 
 ---
 
-## 🔐 API Key 驗證機制
+## 🔐 存取驗證機制 (Access Authentication Mechanisms)
 
-- 所有受保護的路由需攜帶 `X-SECDN-API-KEY` header
-- 每個 virtual host 可透過 `set $api_key_name` 指定驗證對象
-- API Key 會從指定的目錄（由 `SECDN_APIKEY_DIR` 指定）讀入
-- 支援 `/api/keys` 查詢目前已載入的 API Key 名稱（不含內容）
+本專案提供三種驗證方式來保護您的資源：
+
+### 1. API Key Header
+
+這是最基本的驗證方式。客戶端需在請求的 Header 中攜帶 `X-SECDN-API-KEY`，其值必須符合預設的 API Key。
+
+- **適用情境**: 伺服器對伺服器的內部服務呼叫。
+- **設定方式**: 在 `nginx.conf` 的 location 區塊中，透過 `set $api_key_name "your-key-name";` 指定要驗證的 Key 名稱，並使用 `access_by_lua_file /path/to/api_key_check.lua;` 啟用驗證。
+
+### 2. Signed Cookie (URL Prefix)
+
+此方法模仿 Google Cloud CDN 的 Signed Cookie 功能，提供有時效性的授權，可用於保護一組檔案。
+
+- **運作方式**:
+    1. 後端服務需預先產生一個特殊的 Cookie (`SECDN-CDN-Cookie`) 給客戶端。
+    2. 此 Cookie 包含 `URLPrefix` (Base64編碼的網址前綴)、`Expires` (過期時間)、`KeyName` (金鑰名稱) 以及 `Signature` (HMAC-SHA1簽章)。
+    3. OpenResty 會驗證此 Cookie 的簽章是否有效、是否過期，以及請求的網址是否符合 `URLPrefix` 的範圍。
+- **簽章產生**: 簽章的內容是將 `URLPrefix`、`Expires`、`KeyName` 三個欄位的值用冒號 (`:`) 串接而成。
+- **適用情境**: 保護網站上的特定目錄，讓通過驗證的瀏覽器使用者可以在一段時間內存取底下的所有資源。
+
+### 3. Signed URL (URL Prefix)
+
+此方法與 Signed Cookie 類似，但將驗證資訊直接放在 URL 的查詢參數中。
+
+- **運作方式**:
+    1. 後端服務需預先產生帶有簽章的 URL。
+    2. URL 需包含 `URLPrefix`、`Expires`、`KeyName`、`Signature` 四個查詢參數。
+    3. OpenResty 會驗證簽章、過期時間與 `URLPrefix`。
+    4. 驗證成功後，這四個驗證參數會從查詢字串中移除，再將請求轉發至後端服務。
+    5. 原始的完整請求網址 (包含簽章) 會被放在 `X-Client-Request-URL` header 中，一併轉發至後端，供後端選擇性驗證。
+- **簽章產生**: 簽章的內容是將 `URLPrefix`、`Expires`、`KeyName` 三個欄位的值用 `&` 符號串接而成。
+- **適用情境**: 提供給使用者或客戶端一個有時效性的獨立網址，用於下載特定資源或一組資源。
+
+---
+
+## 📝 日誌記錄 (Logging)
+
+為了安全起見，本專案的 Nginx 存取日誌 (`access_log`) 會自動對敏感資訊進行過濾。
+
+- **簽章過濾**: 當請求的網址包含 `Signature` 查詢參數時，其值在日誌中會被替換為 `[MASKED]`。這可以防止包含完整簽章的有效網址被記錄下來，避免日誌外洩時可能造成的安全風險。
 ---
 
 ## 📂 環境變數設定
