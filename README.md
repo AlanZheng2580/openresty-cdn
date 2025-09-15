@@ -110,6 +110,42 @@ mkcert -key-file openresty/certs/localhost-key.pem -cert-file openresty/certs/lo
 - 支援 `/api/keys` 查詢目前已載入的 API Key 名稱（不含內容）
 ---
 
+## 🧪 Next.js 播放器 (CORS 測試)
+
+專案內附一個 Next.js 應用程式，可用於在瀏覽器環境中實際測試 CDN 的 CORS 設定以及兩種驗證方式。
+
+### 啟動步驟
+
+1. **進入播放器目錄**
+   ```bash
+   cd test/nextjs-player
+   ```
+
+2. **安裝依賴套件** (若尚未安裝)
+   ```bash
+   npm install
+   ```
+
+3. **啟動開發伺服器**
+   ```bash
+   npm run dev
+   ```
+
+4. **開啟瀏覽器**
+   - 前往 `http://localhost:3000`
+
+### 如何使用
+
+- **M3U8 URL**: 在此輸入您要播放的影片完整路徑，例如 `http://localhost:8080/minio/bucket-a/path/to/your/video.m3u8`。
+- **Auth Method**: 選擇您要使用的驗證方式。
+  - **API Key**: 使用簡單的 API 金鑰驗證，需在下方輸入框填入對應的 `X-SECDN-API-KEY`。
+  - **Token**: 使用 HMAC 簽章驗證，需在下方輸入框填入完整的 `X-SECDN-Token`。
+- **Load Video**: 點擊按鈕以套用設定並開始播放影片。
+
+如果影片無法播放，請務必打開瀏覽器的開發人員工具 (F12) 查看 **Console** 和 **Network** 分頁中的錯誤訊息。
+
+---
+
 ## 📂 環境變數設定
 
 ```bash
