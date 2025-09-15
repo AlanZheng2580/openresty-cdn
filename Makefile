@@ -12,7 +12,7 @@ help:  ## 顯示所有可用指令
 	awk 'BEGIN {FS = ":.*?## "}; {printf "🛠  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 up: ## 啟動所有服務
-	docker-compose up --build
+	docker-compose up --build --remove-orphans
 
 down: ## 停止所有服務
 	docker-compose down
@@ -27,13 +27,13 @@ rebuild: ## 重建 OpenResty image
 	docker-compose build openresty
 
 list-api-keys:
-	curl -H "X-SECDN-API-KEY: 01234567890123456789012345678901" http://localhost:8080/api/keys
+	curl -H "X-SECDN-API-KEY: 01234567890123456789012345678901" https://localhost:8443/api/keys
 	
 curl-test-a:
-	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" http://localhost:8080/minio/${BUCKET_A_NAME}/hello.txt
+	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/minio/${BUCKET_A_NAME}/hello.txt
 
 curl-test-b:
-	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" http://localhost:8080/minio/${BUCKET_B_NAME}/hello.txt
+	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/minio/${BUCKET_B_NAME}/hello.txt
 
 curl-test: curl-test-a curl-test-b list-api-keys
 
