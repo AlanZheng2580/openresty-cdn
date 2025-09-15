@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test Page</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .container { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        h2 { border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="url"] { width: 95%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 3px; }
+        button { padding: 10px 15px; border: none; background-color: #007bff; color: white; border-radius: 3px; cursor: pointer; margin-right: 10px; }
+        button:hover { background-color: #0056b3; }
+        #clearCookieBtn { background-color: #dc3545; }
+        #clearCookieBtn:hover { background-color: #c82333; }
+        #response { background-color: #f5f5f5; border: 1px solid #ddd; padding: 15px; white-space: pre-wrap; word-wrap: break-word; min-height: 100px; margin-top: 10px; }
+        .options label { display: inline-block; margin-right: 15px; font-weight: normal; }
+    </style>
+</head>
+<body>
+
+    <h1>CORS and Cookie Tester</h1>
+
+    <div class="container">
+        <h2>1. Set Cookie</h2>
+        <label for="cookieDomain">Domain (e.g., localhost):</label>
+        <input type="text" id="cookieDomain" value="localhost">
+
+        <label for="cookieKey">Cookie Key:</label>
+        <input type="text" id="cookieKey" value="my-test-cookie">
+
+        <label for="cookieValue">Cookie Value:</label>
+        <input type="text" id="cookieValue" value="hello-cors">
+        
+        <div class="options">
+            <label><input type="checkbox" id="cookieSecure" checked> Secure</label>
+            <label>SameSite: 
+                <select id="cookieSameSite">
+                    <option value="None" selected>None</option>
+                    <option value="Lax">Lax</option>
+                    <option value="Strict">Strict</option>
+                </select>
+            </label>
+             <label>Path: <input type="text" id="cookiePath" value="/" style="width: 50px;"></label>
+        </div>
+        <br>
+        <button id="setCookieBtn">Set Cookie</button>
+        <button id="clearCookieBtn">Clear Cookie</button>
+        <p id="cookieStatus"></p>
+    </div>
+
+    <div class="container">
+        <h2>2. Make Fetch Request</h2>
+        <label for="fetchUrl">URL:</label>
+        <input type="url" id="fetchUrl" value="https://localhost:8443/lua-status">
+
+        <div class="options">
+            <label><input type="checkbox" id="withCredentials"> withCredentials (send cookies)</label>
+        </div>
+        
+        <h3>Custom Headers</h3>
+        <label for="headerName">Header Name:</label>
+        <input type="text" id="headerName" placeholder="e.g., X-Custom-Header">
+        <label for="headerValue">Header Value:</label>
+        <input type="text" id="headerValue" placeholder="e.g., 12345">
+
+        <br>
+        <button id="fetchBtn">Fetch</button>
+        <button id="clearBtn">Clear Response</button>
+
+        <h3>Response</h3>
+        <pre id="response"></pre>
+    </div>
+
+    <script>
+        const setCookieBtn = document.getElementById('setCookieBtn');
+        const clearCookieBtn = document.getElementById('clearCookieBtn');
+        const cookieStatus = document.getElementById('cookieStatus');
+        
+        const fetchBtn = document.getElementById('fetchBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const responseEl = document.getElementById('response');
+
+        setCookieBtn.addEventListener('click', () => {
+            const domain = document.getElementById('cookieDomain').value;
+            const key = document.getElementById('cookieKey').value;
+            const value = document.getElementById('cookieValue').value;
+            const isSecure = document.getElementById('cookieSecure').checked;
+            const sameSite = document.getElementById('cookieSameSite').value;
+            const path = document.getElementById('cookiePath').value;
+
+            if (!key) {
+                cookieStatus.textContent = 'Cookie key cannot be empty.';
+                return;
+            }
+
+            let cookieString = `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+            cookieString += `; path=${path}`;
+            if (domain) {
+                cookieString += `; domain=${domain}`;
+            }
+            if (isSecure) {
+                cookieString += '; Secure';
+            }
+            if (sameSite) {
+                cookieString += `; SameSite=${sameSite}`;
+            }
+            
+            document.cookie = cookieString;
+            cookieStatus.textContent = `Cookie set: "${cookieString}"`;
+            console.log(`Setting cookie: ${cookieString}`);
+        });
+
+        clearCookieBtn.addEventListener('click', () => {
+            const domain = document.getElementById('cookieDomain').value;
+            const key = document.getElementById('cookieKey').value;
+            const path = document.getElementById('cookiePath').value;
+
+            if (!key) {
+                cookieStatus.textContent = 'Cookie key cannot be empty to clear it.';
+                return;
+            }
+            
+            let cookieString = `${encodeURIComponent(key)}=; path=${path}; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+            if (domain) {
+                cookieString += `; domain=${domain}`;
+            }
+
+            document.cookie = cookieString;
+            cookieStatus.textContent = `Cookie cleared: "${key}"`;
+            console.log(`Clearing cookie: ${cookieString}`);
+        });
+
+        fetchBtn.addEventListener('click', async () => {
+            const url = document.getElementById('fetchUrl').value;
+            const withCredentials = document.getElementById('withCredentials').checked;
+            const headerName = document.getElementById('headerName').value;
+            const headerValue = document.getElementById('headerValue').value;
+
+            const options = {
+                method: 'GET',
+                headers: {}
+            };
+
+            if (withCredentials) {
+                options.credentials = 'include';
+            } else {
+                options.credentials = 'omit'; // Explicitly omit
+            }
+
+            if (headerName && headerValue) {
+                options.headers[headerName] = headerValue;
+            }
+            
+            responseEl.textContent = `Fetching ${url}...`;
+
+            try {
+                const response = await fetch(url, options);
+                let responseText = `Status: ${response.status} ${response.statusText}\n\n`;
+                responseText += '--- Headers ---\n';
+                for (const [key, value] of response.headers.entries()) {
+                    responseText += `${key}: ${value}\n`;
+                }
+                responseText += '\n--- Body ---\n';
+                const body = await response.text();
+                responseText += body;
+                responseEl.textContent = responseText;
+            } catch (error) {
+                responseEl.textContent = `Fetch Error: ${error}`;
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            responseEl.textContent = '';
+        });
+    </script>
+
+</body>
+</html>
