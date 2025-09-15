@@ -27,13 +27,13 @@ rebuild: ## 重建 OpenResty image
 	docker-compose build openresty
 
 list-api-keys:
-	curl -H "X-SECDN-API-KEY: 01234567890123456789012345678901" http://localhost:8080/api/keys
+	curl -H "X-SECDN-API-KEY: 01234567890123456789012345678901" https://localhost:8443/api/keys
 	
 curl-test-a:
-	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" http://localhost:8080/minio/${BUCKET_A_NAME}/hello.txt
+	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/minio/${BUCKET_A_NAME}/hello.txt
 
 curl-test-b:
-	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" http://localhost:8080/minio/${BUCKET_B_NAME}/hello.txt
+	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/minio/${BUCKET_B_NAME}/hello.txt
 
 curl-test: curl-test-a curl-test-b list-api-keys
 
