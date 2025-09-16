@@ -163,36 +163,21 @@ function _M.verify(api_key_name)
     return true, "OK"
 end
 
--- Cookie-based HMAC signature verification
--- Example: Set-Cookie: SECDN-CDN-Cookie=URLPrefix=aHR0cHM6Ly9tZWRpYS5leGFtcGxlLmNvbS92aWRlb3Mv:Expires=1566268009:KeyName=mySigningKey:Signature=0W2xlMlQykL2TG59UZnnHzkxoaw=; Domain=media.example.com; Path=/; Expires=Tue, 20 Aug 2019 02:26:49 GMT; HttpOnly
-function _M.verify_cookie(api_key_name)
-    -- Fetch the signed cookie from the request
-    local cookie_value = ngx.var["cookie_secdn-cdn-cookie"]  -- 'SECDN-CDN-Cookie' will be used here (in lowercase)
-    if not cookie_value then
-        ngx.log(ngx.ERR, "[AUTH] Missing cookie: SECDN-CDN-Cookie")
-        return false, "Cookie not found"
-    end
+-- Common signature verification logic for cookies and signed URL prefix
+local function verify_signature(params, api_key_name, source_type)
+    -- source_type is "Cookie" or "Signed URL Prefix" for logging
 
-    ngx.log(ngx.INFO, "[AUTH] Cookie: " .. cookie_value)
-
-    -- Parse cookie values (URLPrefix, Expires, KeyName, Signature)
-    local cookie_data, err = parse_cookie(cookie_value)
-    if not cookie_data then
-        ngx.log(ngx.ERR, "[AUTH] Cookie parse error: ", err)
-        return false, "Invalid cookie format"
-    end
-
-    -- Check if the cookie has expired
-    local expires = tonumber(cookie_data.Expires)
+    -- Check if the signature has expired
+    local expires = tonumber(params.Expires)
     if not expires or expires < ngx.time() then
-        ngx.log(ngx.ERR, "[AUTH] Cookie has expired")
-        return false, "Cookie expired"
+        ngx.log(ngx.ERR, "[AUTH] ", source_type, " has expired")
+        return false, source_type .. " expired"
     end
 
     -- Decode URLPrefix from base64
-    local url_prefix = ngx.decode_base64(cookie_data.URLPrefix)
+    local url_prefix = ngx.decode_base64(params.URLPrefix)
     if not url_prefix then
-        ngx.log(ngx.ERR, "[AUTH] Invalid URLPrefix in cookie")
+        ngx.log(ngx.ERR, "[AUTH] Invalid URLPrefix in ", source_type)
         return false, "Invalid URLPrefix"
     end
 
@@ -202,9 +187,9 @@ function _M.verify_cookie(api_key_name)
         return false, err
     end
 
-    -- Retrieve the secret key for this cookie
-    if api_key_name ~= cookie_data.KeyName then
-        ngx.log(ngx.ERR, "[AUTH] Invalid KeyName in cookie")
+    -- Retrieve the secret key
+    if api_key_name ~= params.KeyName then
+        ngx.log(ngx.ERR, "[AUTH] Invalid KeyName in ", source_type)
         return false, "Invalid API Key name"
     end
 
@@ -215,20 +200,90 @@ function _M.verify_cookie(api_key_name)
     end
 
     -- Verify HMAC signature
-    local data_to_sign = "URLPrefix=" .. cookie_data.URLPrefix .. ":Expires=" .. cookie_data.Expires .. ":KeyName=" .. cookie_data.KeyName
+    local data_to_sign
+    if source_type == "Cookie" then
+        data_to_sign = "URLPrefix=" .. params.URLPrefix .. ":Expires=" .. params.Expires .. ":KeyName=" .. params.KeyName
+    else -- "Signed URL Prefix"
+        data_to_sign = "URLPrefix=" .. params.URLPrefix .. "&Expires=" .. params.Expires .. "&KeyName=" .. params.KeyName
+    end
+
     local expected_signature = base64.encode_base64url(ngx.hmac_sha1(b_api_key, data_to_sign))
     -- Calculate the required padding length
     if #expected_signature % 4 ~= 0 then
         expected_signature = expected_signature .. string.rep("=", 4 - (#expected_signature % 4))
     end
 
-    ngx.log(ngx.INFO, "[AUTH] expected_signature: " .. expected_signature)
-    if cookie_data.Signature ~= expected_signature then
-        ngx.log(ngx.ERR, "[AUTH] Invalid signature in cookie")
+    -- ngx.log(ngx.INFO, "[AUTH] data_to_sign: ", data_to_sign)
+    -- ngx.log(ngx.INFO, "[AUTH] expected_signature: " .. expected_signature)
+    if params.Signature ~= expected_signature then
+        ngx.log(ngx.ERR, "[AUTH] Invalid signature in ", source_type)
         return false, "Invalid HMAC signature"
     end
 
     return true, "OK"
+end
+
+-- Cookie-based HMAC signature verification
+-- Example: Set-Cookie: SECDN-CDN-Cookie=URLPrefix=aHR0cHM6Ly9tZWRpYS5leGFtcGxlLmNvbS92aWRlb3Mv:Expires=1566268009:KeyName=mySigningKey:Signature=0W2xlMlQykL2TG59UZnnHzkxoaw=; Domain=media.example.com; Path=/; Expires=Tue, 20 Aug 2019 02:26:49 GMT; HttpOnly
+function _M.verify_cookie(api_key_name)
+    -- Fetch the signed cookie from the request
+    local cookie_value = ngx.var["cookie_secdn-cdn-cookie"]  -- 'SECDN-CDN-Cookie' will be used here (in lowercase)
+    if not cookie_value then
+        ngx.log(ngx.ERR, "[AUTH] Missing cookie: SECDN-CDN-Cookie")
+        return false, "Cookie not found"
+    end
+
+    -- ngx.log(ngx.INFO, "[AUTH] Cookie: " .. cookie_value)
+
+    -- Parse cookie values (URLPrefix, Expires, KeyName, Signature)
+    local cookie_data, err = parse_cookie(cookie_value)
+    if not cookie_data then
+        ngx.log(ngx.ERR, "[AUTH] Cookie parse error: ", err)
+        return false, "Invalid cookie format"
+    end
+
+    return verify_signature(cookie_data, api_key_name, "Cookie")
+end
+
+-- Signed URL Prefix verification
+-- Example: /path?URLPrefix=...&Expires=...&KeyName=...&Signature=...
+function _M.verify_signed_url_prefix(api_key_name)
+    -- Fetch query parameters
+    local args = ngx.req.get_uri_args()
+    if not args then
+        ngx.log(ngx.ERR, "[AUTH] No query arguments found")
+        return false, "Missing query arguments"
+    end
+
+    local params = {
+        URLPrefix = args.URLPrefix,
+        Expires   = args.Expires,
+        KeyName   = args.KeyName,
+        Signature = args.Signature,
+    }
+    
+    -- Remove auth query parameters before proxying
+    local old_args = ngx.req.get_uri_args()
+    local new_args = {}
+    for k, v in pairs(old_args) do
+        if k ~= "URLPrefix" and k ~= "Expires" and k ~= "KeyName" and k ~= "Signature" then
+            new_args[k] = v
+        end
+    end
+    ngx.req.set_uri_args(new_args)
+
+    -- Add original URL to a header for the origin to optionally use
+    local original_url = ngx.var.scheme .. "://" .. ngx.var.http_host .. ngx.var.request_uri
+    ngx.req.set_header("X-Client-Request-URL", original_url)
+
+    if not (params.URLPrefix and params.Expires and params.KeyName and params.Signature) then
+        ngx.log(ngx.ERR, "[AUTH] Missing required signed URL Prefix parameters")
+        return false, "Missing one or more of: URLPrefix, Expires, KeyName, Signature"
+    end
+
+    -- ngx.log(ngx.INFO, "[AUTH] Signed URL Prefix params: URLPrefix(b64)=", params.URLPrefix, ", Expires=", params.Expires, ", KeyName=", params.KeyName)
+
+    return verify_signature(params, api_key_name, "Signed URL Prefix")
 end
 
 -- List all currently loaded API key names
