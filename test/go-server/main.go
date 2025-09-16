@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -18,6 +19,7 @@ type PageData struct {
 	Expiration   string
 	Domain       string
 	SignedCookie string
+	SignedURL    string
 	CurlCommand  string
 }
 
@@ -63,6 +65,13 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		// Generate the curl command
 		curlCommand := fmt.Sprintf(`curl -v -H "Cookie: SECDN-CDN-Cookie=%s" %s`, signedCookie, urlPrefix)
 
+		// Generate signed URL
+		signedURL, err := signURLWithPrefix(urlPrefix, keyName, key, expiration)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error generating signed URL: %v", err), http.StatusInternalServerError)
+			return
+		}
+
 		// Set the cookie in the response
 		http.SetCookie(w, &http.Cookie{
 			Name:     "SECDN-CDN-Cookie",
@@ -81,6 +90,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 			Expiration:   expirationStr,
 			Domain:       domain,
 			SignedCookie: signedCookie,
+			SignedURL:    signedURL,
 			CurlCommand:  curlCommand,
 		}
 
@@ -114,6 +124,31 @@ func signCookie(urlPrefix, keyName string, key []byte, expiration time.Time) (st
 		input,
 		sig,
 	)
+
+	return signedValue, nil
+}
+
+// SignURLWithPrefix creates a signed URL prefix for an endpoint on Cloud CDN.
+// Prefixes allow access to any URL with the same prefix, and can be useful for
+// granting access broader content without signing multiple URLs.
+//
+// - urlPrefix must start with "https://" and should not include query parameters.
+// - key should be in raw form (not base64url-encoded) which is 16-bytes long.
+// - keyName must match a key added to the backend service or bucket.
+func signURLWithPrefix(urlPrefix, keyName string, key []byte, expiration time.Time) (string, error) {
+	if strings.Contains(urlPrefix, "?") {
+		return "", fmt.Errorf("urlPrefix must not include query params: %s", urlPrefix)
+	}
+
+	encodedURLPrefix := base64.URLEncoding.EncodeToString([]byte(urlPrefix))
+	input := fmt.Sprintf("URLPrefix=%s&Expires=%d&KeyName=%s",
+		encodedURLPrefix, expiration.Unix(), keyName)
+
+	mac := hmac.New(sha1.New, key)
+	mac.Write([]byte(input))
+	sig := base64.URLEncoding.EncodeToString(mac.Sum(nil))
+
+	signedValue := fmt.Sprintf("%s&Signature=%s", input, sig)
 
 	return signedValue, nil
 }
@@ -163,6 +198,13 @@ const homePageTemplate = `
 		<button type="submit">Go to Test Page with Cookie</button>
 	</form>
     {{end}}
+
+	{{if .SignedURL}}
+    <h2>Generated SignedURL</h2>
+    <p><strong>Signed URL:</strong></p>
+    <pre>{{.SignedURL}}</pre>
+	{{end}}
+
 </body>
 </html>
 `

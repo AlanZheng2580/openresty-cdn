@@ -27,15 +27,26 @@ rebuild: ## 重建 OpenResty image
 	docker-compose build openresty
 
 list-api-keys:
-	curl -H "X-SECDN-API-KEY: 01234567890123456789012345678901" https://localhost:8443/api/keys
+	@curl -s -H "X-SECDN-API-KEY: 01234567890123456789012345678901" https://localhost:8443/api/keys
 	
 curl-test-a:
-	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/minio/${BUCKET_A_NAME}/hello.txt
+	@curl -s -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/minio/${BUCKET_A_NAME}/hello.txt | grep -i "hello from bucket-a"
 
 curl-test-b:
-	curl -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/minio/${BUCKET_B_NAME}/hello.txt
+	@curl -s -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/minio/${BUCKET_B_NAME}/hello.txt | grep -i "hello from bucket-b"
 
-curl-test: curl-test-a curl-test-b list-api-keys
+# https://localhost:8443/test/
+# user-a
+# 58028419ac995b94cc7750b7c5e3a117
+# 2026-10-20T23:59:59Z
+# localhost
+curl-test-cookie:
+	@curl -s -H "Cookie: SECDN-CDN-Cookie=URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==:Expires=1792540799:KeyName=user-a:Signature=5f22bTs1ERvkjx0WOsyDPC19ZwQ=" https://localhost:8443/test/cookie | grep -i "cookie ok"
+
+curl-test-url-prefix:
+	@curl -s "https://localhost:8443/test/signed-url-prefix?URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==&Expires=1792540799&KeyName=user-a&Signature=YXNGBwGGAijLMu-iuZZgje5b-Vk=" | grep -i "signed url prefix ok"
+
+curl-test: curl-test-a curl-test-b curl-test-cookie curl-test-url-prefix list-api-keys
 
 ab-test-apikey: 
 	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/test/apikey"
