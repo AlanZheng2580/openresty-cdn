@@ -48,6 +48,18 @@ curl-test-url-prefix:
 
 curl-test: curl-test-a curl-test-b curl-test-cookie curl-test-url-prefix list-api-keys
 
+cache-test:
+	sleep 3
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status:"
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status: HIT"
+	@curl -Is https://localhost:8443/purge/get | grep -i "HTTP/1.1 200 OK"
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status: MISS"
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status: HIT"
+	@curl -Is -X PURGE https://localhost:8443/ | grep -i "HTTP/1.1 200 OK"
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status: MISS"
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status: HIT"
+	@curl -s https://localhost:8443/status | grep -i "<title>nginx vhost traffic status monitor</title>"
+
 ab-test-apikey: 
 	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/test/apikey"
 
