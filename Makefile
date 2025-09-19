@@ -20,6 +20,9 @@ down: ## 停止所有服務
 logs: ## 查看 OpenResty 的 logs
 	docker-compose logs -f openresty
 
+exec: ## exec OpenResty
+	docker-compose exec openresty bash
+
 reload: check-lua
 	docker-compose exec openresty openresty -s reload
 
@@ -35,6 +38,11 @@ curl-test-a:
 curl-test-b:
 	@curl -s -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/minio/${BUCKET_B_NAME}/hello.txt | grep -i "hello from bucket-b"
 
+curl-test-apikey:
+	@curl -s -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/test/apikey | grep -i "apikey ok"
+	@curl -s -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/test/apikey/minio/${BUCKET_A_NAME}/hello.txt | grep -i "hello from bucket-a"
+	@curl -s -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" https://localhost:8443/test/apikey/minio/${BUCKET_B_NAME}/hello.txt | grep -i "hello from bucket-b"
+
 # https://localhost:8443/test/
 # user-a
 # 58028419ac995b94cc7750b7c5e3a117
@@ -42,11 +50,27 @@ curl-test-b:
 # localhost
 curl-test-cookie:
 	@curl -s -H "Cookie: SECDN-CDN-Cookie=URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==:Expires=1792540799:KeyName=user-a:Signature=5f22bTs1ERvkjx0WOsyDPC19ZwQ=" https://localhost:8443/test/cookie | grep -i "cookie ok"
+	@curl -s -H "Cookie: SECDN-CDN-Cookie=URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==:Expires=1792540799:KeyName=user-a:Signature=5f22bTs1ERvkjx0WOsyDPC19ZwQ=" https://localhost:8443/test/cookie/minio/${BUCKET_A_NAME}/hello.txt | grep -i "hello from bucket-a"
+	@curl -s -H "Cookie: SECDN-CDN-Cookie=URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==:Expires=1792540799:KeyName=user-a:Signature=5f22bTs1ERvkjx0WOsyDPC19ZwQ=" https://localhost:8443/test/cookie/minio/${BUCKET_B_NAME}/hello.txt | grep -i "hello from bucket-b"
 
 curl-test-url-prefix:
 	@curl -s "https://localhost:8443/test/signed-url-prefix?URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==&Expires=1792540799&KeyName=user-a&Signature=YXNGBwGGAijLMu-iuZZgje5b-Vk=" | grep -i "signed url prefix ok"
+	@curl -s "https://localhost:8443/test/signed-url-prefix/minio/${BUCKET_A_NAME}/hello.txt?URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==&Expires=1792540799&KeyName=user-a&Signature=YXNGBwGGAijLMu-iuZZgje5b-Vk=" | grep -i "hello from bucket-a"
+	@curl -s "https://localhost:8443/test/signed-url-prefix/minio/${BUCKET_B_NAME}/hello.txt?URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==&Expires=1792540799&KeyName=user-a&Signature=YXNGBwGGAijLMu-iuZZgje5b-Vk=" | grep -i "hello from bucket-b"
 
-curl-test: curl-test-a curl-test-b curl-test-cookie curl-test-url-prefix list-api-keys
+curl-cache-test:
+	sleep 3
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status:"
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status: HIT"
+	@curl -Is https://localhost:8443/purge/get | grep -i "HTTP/1.1 200 OK"
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status: MISS"
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status: HIT"
+	@curl -Is -X PURGE https://localhost:8443/ | grep -i "HTTP/1.1 200 OK"
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status: MISS"
+	@curl -Is https://localhost:8443/get | grep -i "X-Cache-Status: HIT"
+	@curl -s https://localhost:8443/status | grep -i "<title>nginx vhost traffic status monitor</title>"
+
+curl-test: curl-test-a curl-test-b curl-test-apikey curl-test-cookie curl-test-url-prefix list-api-keys curl-cache-test
 
 ab-test-apikey: 
 	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/test/apikey"
