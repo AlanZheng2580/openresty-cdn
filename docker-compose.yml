@@ -55,6 +55,7 @@ services:
       - ./openresty/certs:/opt/bitnami/openresty/nginx/conf/certs
       - ./openresty/apikeys:${SECDN_APIKEY_DIR}
       - ./openresty/lua:/opt/bitnami/openresty/nginx/lua
+      - ./test/lua:/test/lua
     environment:
       - SECDN_APIKEY_DIR=${SECDN_APIKEY_DIR}
       - MINIO_SECRET_KEY=${BUCKET_SECRET_KEY}
