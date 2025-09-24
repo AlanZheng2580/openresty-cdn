@@ -103,6 +103,7 @@ lua-test: ## 產生curl指令
 
 unit-test:
 	docker-compose exec -T openresty resty /test/lua/aws_v4_signer_test.lua
+	docker-compose exec -T openresty resty --shdict 'secrets 1m' -e 'require "resty.core"' /test/lua/api_key_auth_test.lua
 
 mc-upload: ## 上傳一個測試檔案到 MinIO 私有 bucket
 	echo "hello from bucket-a" > /tmp/hello-a.txt
