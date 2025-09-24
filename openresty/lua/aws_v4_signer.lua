@@ -40,11 +40,11 @@ local function build_aws_v4_signature(args)
     local body = args.body or ""
     local method = args.method or "GET"
 
+    local payload_hash = str.to_hex(sha256:new():final(body))
     local canonical_uri = "/" .. bucket .. "/" .. object
     local bucket_url  = schema .. "://" .. host .. "/" .. bucket .. "/" .. object
-    local canonical_headers = "host:" .. host .. "\n" .. "x-amz-date:" .. amz_date .. "\n"
-    local signed_headers = "host;x-amz-date"
-    local payload_hash = str.to_hex(sha256:new():final(""))
+    local canonical_headers = "host:" .. host .. "\n" .. "x-amz-content-sha256:" .. payload_hash .. "\n" .. "x-amz-date:" .. amz_date .. "\n"
+    local signed_headers = "host;x-amz-content-sha256;x-amz-date"
 
     local canonical_request = table.concat({
         method,
