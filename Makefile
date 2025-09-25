@@ -5,6 +5,7 @@ export
 # 預設指令
 .DEFAULT_GOAL := help
 LUA_FILES := $(shell find openresty/lua -type f -name "*.lua")
+LUA_TEST_FILES := $(shell find test/lua/ -type f -name "*.lua")
 
 .PHONY: help
 help:  ## 顯示所有可用指令
@@ -92,6 +93,11 @@ check-lua:
 		echo "  > $$file"; \
 		docker-compose exec openresty  \
 			luajit -b "/opt/bitnami/openresty/nginx/lua/$$(basename $$file)" /dev/null || exit 1; \
+	done
+	@for file in $(LUA_TEST_FILES); do \
+		echo "  > $$file"; \
+		docker-compose exec openresty  \
+			luajit -b "/test/lua/$$(basename $$file)" /dev/null || exit 1; \
 	done
 	@echo "✅ All Lua files passed."
 
