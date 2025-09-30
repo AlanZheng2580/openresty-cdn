@@ -263,9 +263,8 @@ function _M.verify_signed_url_prefix(api_key_name)
     }
     
     -- Remove auth query parameters before proxying
-    local old_args = ngx.req.get_uri_args()
     local new_args = {}
-    for k, v in pairs(old_args) do
+    for k, v in pairs(args) do
         if k ~= "URLPrefix" and k ~= "Expires" and k ~= "KeyName" and k ~= "Signature" then
             new_args[k] = v
         end
