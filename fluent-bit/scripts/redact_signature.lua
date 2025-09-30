@@ -5,5 +5,5 @@ function redact_signature(tag, timestamp, record, flb)
         message = string.gsub(message, "(Signature=)([%w%-=]+)", "%1******")
         record["message"] = message
     end
-    return 1, timestamp, record
+    return 2, timestamp, record
 end
