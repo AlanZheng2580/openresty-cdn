@@ -8,7 +8,7 @@
 #  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 
-FROM cyching/openresty:20250526-861eb6ae-1.27.1-1-debian-12-r5
+FROM cyching/openresty:20250923-710ff5cf-1.27.1-2-debian-12-r15
 
 USER root
 
