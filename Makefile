@@ -83,6 +83,9 @@ ab-test-minio:
 ab-test-all: 
 	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/test/all/hello.txt"
 
+ab-test-lualog:
+	@ab -n 100000 -c 50 "http://localhost:8080/lualog?URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==&Expires=1792540799&KeyName=user-a&Signature=YXNGBwGGAijLMu-iuZZgje5b-Vk="
+
 ab-install:
 	@echo "Installing Apache Benchmark (ab)..."
 	@sudo apt-get update
