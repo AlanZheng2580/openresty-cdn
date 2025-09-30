@@ -5,6 +5,7 @@ export
 # 預設指令
 .DEFAULT_GOAL := help
 LUA_FILES := $(shell find openresty/lua -type f -name "*.lua")
+LUA_TEST_FILES := $(shell find test/lua/ -type f -name "*.lua")
 
 .PHONY: help
 help:  ## 顯示所有可用指令
@@ -93,6 +94,11 @@ check-lua:
 		docker-compose exec openresty  \
 			luajit -b "/opt/bitnami/openresty/nginx/lua/$$(basename $$file)" /dev/null || exit 1; \
 	done
+	@for file in $(LUA_TEST_FILES); do \
+		echo "  > $$file"; \
+		docker-compose exec openresty  \
+			luajit -b "/test/lua/$$(basename $$file)" /dev/null || exit 1; \
+	done
 	@echo "✅ All Lua files passed."
 
 bash:
@@ -100,6 +106,10 @@ bash:
 
 lua-test: ## 產生curl指令
 	docker exec openresty-cdn_openresty_1 bash -c "cd /opt/bitnami/openresty/nginx/lua/ && TEST_ACCESS_KEY=${BUCKET_ACCESS_KEY} TEST_SECRET_KEY=${BUCKET_SECRET_KEY} TEST_MINIO_HOST=minio:9000 TEST_BUCKET=${BUCKET_A_NAME} TEST_OBJECT=hello.txt resty test_signer.lua"
+
+unit-test:
+	docker-compose exec -T openresty resty /test/lua/aws_v4_signer_test.lua
+	docker-compose exec -T openresty resty --shdict 'secrets 1m' -e 'require "resty.core"' /test/lua/api_key_auth_test.lua
 
 mc-upload: ## 上傳一個測試檔案到 MinIO 私有 bucket
 	echo "hello from bucket-a" > /tmp/hello-a.txt
