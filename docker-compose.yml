@@ -45,6 +45,16 @@ services:
     #   - /app/.next
     environment:
       - CHOKIDAR_USEPOLLING=true
+  fluent-bit:
+    image: fluent/fluent-bit:4.0.0
+    volumes:
+      - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - ./fluent-bit/scripts:/fluent-bit/scripts
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    command: -c /fluent-bit/etc/fluent-bit.conf
+
   openresty:
     build: ./openresty
     ports:
@@ -64,3 +74,9 @@ services:
       - mc
       - httpbin
       - nextjs-player
+      - fluent-bit
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: openresty.{{.Name}}
