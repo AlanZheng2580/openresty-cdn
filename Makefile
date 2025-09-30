@@ -13,7 +13,7 @@ help:  ## 顯示所有可用指令
 	awk 'BEGIN {FS = ":.*?## "}; {printf "🛠  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 up: ## 啟動所有服務
-	docker-compose up --build --remove-orphans
+	docker-compose --compatibility up --build --remove-orphans
 
 down: ## 停止所有服務
 	docker-compose down

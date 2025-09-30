@@ -52,6 +52,10 @@ services:
       - ./fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf
       - ./fluent-bit/scripts:/fluent-bit/scripts
     command: -c /fluent-bit/etc/fluent-bit.conf
+    deploy:
+      resources:
+        limits:
+          cpus: '0.01'
   openresty:
     build: ./openresty
     ports:
