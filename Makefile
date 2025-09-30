@@ -58,6 +58,7 @@ curl-test-url-prefix:
 	@curl -s "https://localhost:8443/test/signed-url-prefix?URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==&Expires=1792540799&KeyName=user-a&Signature=YXNGBwGGAijLMu-iuZZgje5b-Vk=" | grep -i "signed url prefix ok"
 	@curl -s "https://localhost:8443/test/signed-url-prefix/minio/${BUCKET_A_NAME}/hello.txt?URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==&Expires=1792540799&KeyName=user-a&Signature=YXNGBwGGAijLMu-iuZZgje5b-Vk=" | grep -i "hello from bucket-a"
 	@curl -s "https://localhost:8443/test/signed-url-prefix/minio/${BUCKET_B_NAME}/hello.txt?URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==&Expires=1792540799&KeyName=user-a&Signature=YXNGBwGGAijLMu-iuZZgje5b-Vk=" | grep -i "hello from bucket-b"
+	@curl -s "https://localhost:8443/test/signed-url-prefix/get?URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==&Expires=1792540799&KeyName=user-a&Signature=YXNGBwGGAijLMu-iuZZgje5b-Vk="|grep '"args": {},'
 
 curl-cache-test:
 	sleep 3
