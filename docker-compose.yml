@@ -1,8 +1,5 @@
 version: "3.3"
 
-volumes:
-  nginx_logs_data:
-
 services:
   minio:
     image: minio/minio:RELEASE.2025-04-08T15-41-24Z-cpuv1
@@ -52,17 +49,9 @@ services:
     image: fluent/fluent-bit:4.0.0
     volumes:
       - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - ./fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf
       - ./fluent-bit/scripts:/fluent-bit/scripts
-      - nginx_logs_data:/var/log/nginx # Mount shared volume
-    ports:
-      - "24224:24224"
-      - "24224:24224/udp"
     command: -c /fluent-bit/etc/fluent-bit.conf
-  openresty-init:
-    image: alpine
-    command: chown 1001:1001 /var/log/nginx
-    volumes:
-      - nginx_logs_data:/var/log/nginx
   openresty:
     build: ./openresty
     ports:
@@ -74,7 +63,6 @@ services:
       - ./openresty/apikeys:${SECDN_APIKEY_DIR}
       - ./openresty/lua:/opt/bitnami/openresty/nginx/lua
       - ./test/lua:/test/lua
-      - nginx_logs_data:/var/log/nginx # Mount shared volume
     environment:
       - SECDN_APIKEY_DIR=${SECDN_APIKEY_DIR}
       - MINIO_SECRET_KEY=${BUCKET_SECRET_KEY}
@@ -84,4 +72,3 @@ services:
       - httpbin
       - nextjs-player
       - fluent-bit
-      - openresty-init # Ensure init container runs first
