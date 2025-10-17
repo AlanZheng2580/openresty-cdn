@@ -7,12 +7,12 @@ if method == "OPTIONS" then
 end
 
 local api_key_name = ngx.var.api_key_name
-local ok, err = auth.verify(api_key_name)
-if not ok then
+local status, err = auth.verify(api_key_name)
+if status ~= ngx.HTTP_OK then
     if ngx.var.cdn_enable_cors_on_failure == "1" then
         cors.add_headers()
     end
-    ngx.status = ngx.HTTP_FORBIDDEN
+    ngx.status = status
     ngx.say(err)
-    return ngx.exit(ngx.HTTP_FORBIDDEN)
+    return ngx.exit(status)
 end
