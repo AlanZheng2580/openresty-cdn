@@ -93,32 +93,32 @@ print("\nRunning tests for: _M.verify (Header Auth)")
 -- Test 1.1: Valid API Key
 setup_mocks({ headers = { ["X-SECDN-API-KEY"] = test_hex_key } })
 ngx.shared.secrets:set("api_key_" .. test_key_name, test_hex_key)
-local ok, err = api_key_auth.verify(test_key_name)
-assert_equal(ok, true, "Test 1.1 failed")
-assert_equal(err, "OK", "Test 1.2 failed")
+local status, err = api_key_auth.verify(test_key_name)
+assert_equal(status, mock_ngx.HTTP_OK, "Test 1.1.1 failed")
+assert_equal(err, "OK", "Test 1.1.2 failed")
 print("  [PASS] Test 1.1: Valid API Key")
 
 -- Test 1.2: Invalid API Key
 setup_mocks({ headers = { ["X-SECDN-API-KEY"] = "wrong_key" } })
 ngx.shared.secrets:set("api_key_" .. test_key_name, test_hex_key)
-local ok, err = api_key_auth.verify(test_key_name)
-assert_equal(ok, false, "Test 1.2.1 failed")
+local status, err = api_key_auth.verify(test_key_name)
+assert_equal(status, mock_ngx.HTTP_FORBIDDEN, "Test 1.2.1 failed")
 assert_equal(err, "Invalid API Key", "Test 1.2.2 failed")
 print("  [PASS] Test 1.2: Invalid API Key")
 
 -- Test 1.3: Missing API Key Header
 setup_mocks() -- No headers
 ngx.shared.secrets:set("api_key_" .. test_key_name, test_hex_key)
-local ok, err = api_key_auth.verify(test_key_name)
-assert_equal(ok, false, "Test 1.3.1 failed")
-assert_equal(err, "Invalid API Key", "Test 1.3.2 failed")
+local status, err = api_key_auth.verify(test_key_name)
+assert_equal(status, mock_ngx.HTTP_BAD_REQUEST, "Test 1.3.1 failed")
+assert_equal(err, "Missing API Key header", "Test 1.3.2 failed")
 print("  [PASS] Test 1.3: Missing API Key Header")
 
 -- Test 1.4: Key not configured in secrets
 setup_mocks({ headers = { ["X-SECDN-API-KEY"] = test_hex_key } })
 -- No key is set in secrets
-local ok, err = api_key_auth.verify(test_key_name)
-assert_equal(ok, false, "Test 1.4.1 failed - should fail")
+local status, err = api_key_auth.verify(test_key_name)
+assert_equal(status, mock_ngx.HTTP_INTERNAL_SERVER_ERROR, "Test 1.4.1 failed - should fail")
 assert_equal(err, "API key not configured", "Test 1.4.2 failed")
 print("  [PASS] Test 1.4: Key not configured")
 
@@ -142,8 +142,8 @@ setup_mocks({
     vars = cookie_vars
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
-local ok, err = api_key_auth.verify_cookie(test_key_name)
-assert_equal(ok, true, "Test 2.1.1 failed")
+local status, err = api_key_auth.verify_cookie(test_key_name)
+assert_equal(status, mock_ngx.HTTP_OK, "Test 2.1.1 failed")
 assert_equal(err, "OK", "Test 2.1.2 failed")
 print("  [PASS] Test 2.1: Valid cookie")
 
@@ -153,11 +153,11 @@ setup_mocks({
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
 mock_ngx.time = function() return expires_time + 1 end -- Time travel to after expiration
-local ok, err = api_key_auth.verify_cookie(test_key_name)
-assert_equal(ok, false, "Test 2.2.1 failed")
+local status, err = api_key_auth.verify_cookie(test_key_name)
+assert_equal(status, mock_ngx.HTTP_FORBIDDEN, "Test 2.2.1 failed")
 assert_equal(err, "Cookie expired", "Test 2.2.2 failed")
 print("  [PASS] Test 2.2: Expired cookie")
-mock_ngx.time = function() return mock_ngx.time() - 1 end -- Reset time
+mock_ngx.time = function() return 1727172000 end -- Reset time
 
 -- Test 2.3: Invalid Signature
 local tampered_cookie_value = cookie_value:gsub("Signature=..", "Signature=XX") -- Tamper signature
@@ -171,8 +171,8 @@ setup_mocks({
     }
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
-local ok, err = api_key_auth.verify_cookie(test_key_name)
-assert_equal(ok, false, "Test 2.3.1 failed")
+local status, err = api_key_auth.verify_cookie(test_key_name)
+assert_equal(status, mock_ngx.HTTP_FORBIDDEN, "Test 2.3.1 failed")
 assert_equal(err, "Invalid HMAC signature", "Test 2.3.2 failed")
 print("  [PASS] Test 2.3: Invalid signature")
 
@@ -187,8 +187,8 @@ setup_mocks({
     }
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
-local ok, err = api_key_auth.verify_cookie(test_key_name)
-assert_equal(ok, false, "Test 2.4.1 failed")
+local status, err = api_key_auth.verify_cookie(test_key_name)
+assert_equal(status, mock_ngx.HTTP_FORBIDDEN, "Test 2.4.1 failed")
 assert_equal(err, "URI prefix mismatch", "Test 2.4.2 failed")
 print("  [PASS] Test 2.4: Mismatched Request URI")
 
@@ -203,8 +203,8 @@ setup_mocks({
     }
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
-local ok, err = api_key_auth.verify_cookie(test_key_name)
-assert_equal(ok, false, "Test 2.5.1 failed")
+local status, err = api_key_auth.verify_cookie(test_key_name)
+assert_equal(status, mock_ngx.HTTP_BAD_REQUEST, "Test 2.5.1 failed")
 assert_equal(err, "Cookie not found", "Test 2.5.2 failed")
 print("  [PASS] Test 2.5: Missing Cookie")
 
@@ -219,8 +219,8 @@ setup_mocks({
     }
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
-local ok, err = api_key_auth.verify_cookie(test_key_name)
-assert_equal(ok, false, "Test 2.6.1 failed")
+local status, err = api_key_auth.verify_cookie(test_key_name)
+assert_equal(status, mock_ngx.HTTP_BAD_REQUEST, "Test 2.6.1 failed")
 assert_equal(err, "Invalid cookie format", "Test 2.6.2 failed")
 print("  [PASS] Test 2.6: Malformed Cookie String")
 
@@ -237,8 +237,8 @@ setup_mocks({
     }
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
-local ok, err = api_key_auth.verify_cookie(test_key_name)
-assert_equal(ok, false, "Test 2.7.1 failed")
+local status, err = api_key_auth.verify_cookie(test_key_name)
+assert_equal(status, mock_ngx.HTTP_FORBIDDEN, "Test 2.7.1 failed")
 assert_equal(err, "Invalid API Key name", "Test 2.7.2 failed")
 print("  [PASS] Test 2.7: KeyName Mismatch")
 
@@ -247,8 +247,8 @@ setup_mocks({
     vars = cookie_vars -- Use the valid cookie vars from 2.1
 })
 -- ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key) -- Key not set
-local ok, err = api_key_auth.verify_cookie(test_key_name)
-assert_equal(ok, false, "Test 2.8.1 failed")
+local status, err = api_key_auth.verify_cookie(test_key_name)
+assert_equal(status, mock_ngx.HTTP_INTERNAL_SERVER_ERROR, "Test 2.8.1 failed")
 assert_equal(err, "Invalid binary API Key", "Test 2.8.2 failed")
 print("  [PASS] Test 2.8: Binary Key Not Found")
 
@@ -277,8 +277,8 @@ setup_mocks({
     uri_args = url_prefix_uri_args
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
-local ok, err = api_key_auth.verify_signed_url_prefix(test_key_name)
-assert_equal(ok, true, "Test 3.1.1 failed")
+local status, err = api_key_auth.verify_signed_url_prefix(test_key_name)
+assert_equal(status, mock_ngx.HTTP_OK, "Test 3.1.1 failed")
 assert_equal(err, "OK", "Test 3.1.2 failed")
 print("  [PASS] Test 3.1: Valid signed URL Prefix")
 
@@ -289,11 +289,11 @@ setup_mocks({
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
 mock_ngx.time = function() return expires_time + 1 end -- Time travel to after expiration
-local ok, err = api_key_auth.verify_signed_url_prefix(test_key_name)
-assert_equal(ok, false, "Test 3.2.1 failed")
+local status, err = api_key_auth.verify_signed_url_prefix(test_key_name)
+assert_equal(status, mock_ngx.HTTP_FORBIDDEN, "Test 3.2.1 failed")
 assert_equal(err, "Signed URL Prefix expired", "Test 3.2.2 failed")
 print("  [PASS] Test 3.2: Expired Signed URL Prefix")
-mock_ngx.time = function() return mock_ngx.time() - 1 end -- Reset time
+mock_ngx.time = function() return 1727172000 end -- Reset time
 
 -- Test 3.3: Invalid Signature
 local tampered_uri_args = {
@@ -307,8 +307,8 @@ setup_mocks({
     uri_args = tampered_uri_args
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
-local ok, err = api_key_auth.verify_signed_url_prefix(test_key_name)
-assert_equal(ok, false, "Test 3.3.1 failed")
+local status, err = api_key_auth.verify_signed_url_prefix(test_key_name)
+assert_equal(status, mock_ngx.HTTP_FORBIDDEN, "Test 3.3.1 failed")
 assert_equal(err, "Invalid HMAC signature", "Test 3.3.2 failed")
 print("  [PASS] Test 3.3: Invalid Signature")
 
@@ -325,8 +325,8 @@ setup_mocks({
     uri_args = url_prefix_uri_args
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
-local ok, err = api_key_auth.verify_signed_url_prefix(test_key_name)
-assert_equal(ok, false, "Test 3.4.1 failed")
+local status, err = api_key_auth.verify_signed_url_prefix(test_key_name)
+assert_equal(status, mock_ngx.HTTP_FORBIDDEN, "Test 3.4.1 failed")
 assert_equal(err, "URI prefix mismatch", "Test 3.4.2 failed")
 print("  [PASS] Test 3.4: Mismatched Request URI")
 
@@ -341,8 +341,8 @@ setup_mocks({
     }
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
-local ok, err = api_key_auth.verify_signed_url_prefix(test_key_name)
-assert_equal(ok, false, "Test 3.5.1 failed")
+local status, err = api_key_auth.verify_signed_url_prefix(test_key_name)
+assert_equal(status, mock_ngx.HTTP_BAD_REQUEST, "Test 3.5.1 failed")
 assert_equal(err, "Missing one or more of: URLPrefix, Expires, KeyName, Signature", "Test 3.5.2 failed")
 print("  [PASS] Test 3.5: Missing Query Parameters")
 
@@ -358,8 +358,8 @@ setup_mocks({
     uri_args = mismatched_url_prefix_uri_args
 })
 ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key)
-local ok, err = api_key_auth.verify_signed_url_prefix(test_key_name)
-assert_equal(ok, false, "Test 3.6.1 failed")
+local status, err = api_key_auth.verify_signed_url_prefix(test_key_name)
+assert_equal(status, mock_ngx.HTTP_FORBIDDEN, "Test 3.6.1 failed")
 assert_equal(err, "Invalid API Key name", "Test 3.6.2 failed")
 print("  [PASS] Test 3.6: KeyName Mismatch")
 
@@ -369,8 +369,8 @@ setup_mocks({
     uri_args = url_prefix_uri_args
 })
 -- ngx.shared.secrets:set("b_api_key_" .. test_key_name, test_binary_key) -- Key not set
-local ok, err = api_key_auth.verify_signed_url_prefix(test_key_name)
-assert_equal(ok, false, "Test 3.7.1 failed")
+local status, err = api_key_auth.verify_signed_url_prefix(test_key_name)
+assert_equal(status, mock_ngx.HTTP_INTERNAL_SERVER_ERROR, "Test 3.7.1 failed")
 assert_equal(err, "Invalid binary API Key", "Test 3.7.2 failed")
 print("  [PASS] Test 3.7: Binary Key Not Found")
 
