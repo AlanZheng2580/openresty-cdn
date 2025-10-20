@@ -157,7 +157,7 @@ local status, err = api_key_auth.verify_cookie(test_key_name)
 assert_equal(status, mock_ngx.HTTP_FORBIDDEN, "Test 2.2.1 failed")
 assert_equal(err, "Cookie expired", "Test 2.2.2 failed")
 print("  [PASS] Test 2.2: Expired cookie")
-mock_ngx.time = function() return 1727172000 end -- Reset time
+mock_ngx.time = function() return mock_ngx.time() - 1 end -- Reset time
 
 -- Test 2.3: Invalid Signature
 local tampered_cookie_value = cookie_value:gsub("Signature=..", "Signature=XX") -- Tamper signature
