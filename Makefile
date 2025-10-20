@@ -1,6 +1,7 @@
 # 載入 .env 內的變數
 include .env
 export
+PROJECT_ROOT := $(shell dirname $(CURDIR)/.)
 
 # 預設指令
 .DEFAULT_GOAL := help
@@ -46,9 +47,21 @@ check-lua: ## 檢查所有 Lua 檔案的語法
 	done
 	@echo "✅ All Lua files passed."
 
+# docker-compose exec -T openresty resty /test/lua/aws_v4_signer_test.lua
+# docker-compose exec -T openresty resty --shdict 'secrets 1m' -e 'require "resty.core"' /test/lua/api_key_auth_test.lua
 unit-test: ## [單元測試] 執行 Lua 模組的單元測試
-	docker-compose exec -T openresty resty /test/lua/aws_v4_signer_test.lua
-	docker-compose exec -T openresty resty --shdict 'secrets 1m' -e 'require "resty.core"' /test/lua/api_key_auth_test.lua
+	@docker run --user=0 --rm -v ${PROJECT_ROOT}/test/:/test -v ${PROJECT_ROOT}/openresty/lua:/opt/bitnami/openresty/nginx/lua/  \
+	cyching/openresty:20250910-dbddecf6-1.27.1-2-debian-12-r15 bash -c " \
+		cd /test; \
+		for test_file in \$$(find \"/test/lua\" -type f -iname \"*.lua\"); do \
+			echo \"[INFO] Target FIle: \$$test_file\"; \
+			resty --shdict 'secrets 1m' -e 'require \"resty.core\"' \"\$$test_file\"; \
+			if [ \$$? -ne 0 ]; then \
+				echo \"[ERROR] Test '\$$test_file' failed! Exiting.\"; \
+				exit 1; \
+			fi; \
+		done \
+	"
 
 curl-test: curl-test-a curl-test-b curl-test-apikey curl-test-cookie curl-test-url-prefix list-api-keys curl-test-cache ## [整合測試] 執行所有 curl 整合測試
 	@echo "[SUCCESS] All tests passed!"
