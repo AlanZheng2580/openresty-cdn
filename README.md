@@ -89,16 +89,11 @@ mkcert -key-file openresty/certs/localhost-key.pem -cert-file openresty/certs/lo
 
 ## 🛠 可用的 Make 指令
 
-| 指令             | 說明 |
-|------------------|------|
-| `make up`        | 啟動所有 Docker 容器並建置 |
-| `make down`      | 停止並移除容器 |
-| `make rebuild`   | 只重建 OpenResty 的 Image |
-| `make logs`      | 查看 OpenResty 的日誌 |
-| `make reload`    | 重新載入nginx.conf，API Key也一併重載入 |
-| `make mc-upload` | 手動上傳 `/hello from bucket-X` 測試檔案至兩個 bucket |
-| `make curl-test` | 一次測試 bucket-a/bucket-b 的 proxy 存取 |
-| `make lua-test`  | 產生curl測試指令，可測試aws簽章 |
+執行 `make help` 來查看所有可用的指令及其說明。
+
+```bash
+make help
+```
 
 ---
 
@@ -146,9 +141,34 @@ mkcert -key-file openresty/certs/localhost-key.pem -cert-file openresty/certs/lo
 - **簽章過濾**: 當請求的網址包含 `Signature` 查詢參數時，其值在日誌中會被替換為 `[MASKED]`。這可以防止包含完整簽章的有效網址被記錄下來，避免日誌外洩時可能造成的安全風險。
 ---
 
+## 🧪 測試 (Testing)
+
+本專案包含整合測試與單元測試，可透過 `make` 指令執行。
+
+### 整合測試
+
+執行 `make curl-test` 來對目前運行的服務進行一系列的 `curl` 請求測試，驗證各種驗證機制是否正常運作。
+
+### 單元測試
+
+執行 `make unit-test` 來針對核心的 Lua 模組進行單元測試。
+
+**重要**: 這些測試是在 Docker 容器內執行的。在執行測試之前，特別是在修改程式碼後，建議先執行 `make up` 來確保 Docker image 已被重建且環境是最新狀態。本地檔案會掛載進容器來方便執行測試。
+
+```bash
+# 1. 確保 Docker 服務正在運行
+make up
+
+# 2. 執行單元測試
+make unit-test
+```
+
+---
+
 ## 🧪 Next.js 播放器 (CORS 測試)
 
 專案內附一個 Next.js 應用程式，可用於在瀏覽器環境中實際測試 CDN 的 CORS 設定以及兩種驗證方式。
+已包成Docker Image整入，若想單獨測試，可用下列指令本機執行
 
 ### 啟動步驟
 

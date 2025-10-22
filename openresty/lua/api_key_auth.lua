@@ -47,7 +47,7 @@ local function verify_request_matches_prefix(prefix_url)
     local parsed_prefix, err = parse_url(prefix_url)
     if not parsed_prefix then
         ngx.log(ngx.ERR, "[AUTH] Failed to parse URLPrefix: ", err)
-        return false, "Invalid URLPrefix format"
+        return ngx.HTTP_BAD_REQUEST, "Invalid URLPrefix format"
     end
 
     -- Get request components
@@ -59,13 +59,13 @@ local function verify_request_matches_prefix(prefix_url)
     -- Compare scheme
     if scheme ~= parsed_prefix.scheme then
         ngx.log(ngx.ERR, "[AUTH] Scheme mismatch (expected: ", parsed_prefix.scheme, ", got: ", scheme, ")")
-        return false, "Scheme mismatch"
+        return ngx.HTTP_FORBIDDEN, "Scheme mismatch"
     end
 
     -- Compare host
     if host ~= parsed_prefix.host then
         ngx.log(ngx.ERR, "[AUTH] Host mismatch (expected: ", parsed_prefix.host, ", got: ", host, ")")
-        return false, "Host mismatch"
+        return ngx.HTTP_FORBIDDEN, "Host mismatch"
     end
 
     -- [Disable] Compare port (default to 80 or 443 if not present)
@@ -80,10 +80,10 @@ local function verify_request_matches_prefix(prefix_url)
     -- Compare URI prefix
     if uri:sub(1, #parsed_prefix.uri) ~= parsed_prefix.uri then
         ngx.log(ngx.ERR, "[AUTH] URI mismatch (expected prefix: ", parsed_prefix.uri, ", got: ", uri, ")")
-        return false, "URI prefix mismatch"
+        return ngx.HTTP_FORBIDDEN, "URI prefix mismatch"
     end
 
-    return true, "OK"
+    return ngx.HTTP_OK, "OK"
 end
 
 -- Load API keys from disk and cache both plain and binary formats
@@ -151,16 +151,21 @@ function _M.verify(api_key_name)
     local expected = dict:get("api_key_" .. api_key_name)
     if not expected then
         ngx.log(ngx.ERR, "[AUTH] No key found for: ", api_key_name)
-        return false, "API key not configured"
+        return ngx.HTTP_INTERNAL_SERVER_ERROR, "API key not configured"
     end
 
     local actual = ngx.req.get_headers()["X-SECDN-API-KEY"]
-    if not actual or actual ~= expected then
-        ngx.log(ngx.ERR, "[AUTH] Invalid API Key: ", api_key_name)
-        return false, "Invalid API Key"
+    if not actual then
+        ngx.log(ngx.ERR, "[AUTH] Missing API Key header")
+        return ngx.HTTP_BAD_REQUEST, "Missing API Key header"
     end
 
-    return true, "OK"
+    if actual ~= expected then
+        ngx.log(ngx.ERR, "[AUTH] Invalid API Key: ", api_key_name)
+        return ngx.HTTP_FORBIDDEN, "Invalid API Key"
+    end
+
+    return ngx.HTTP_OK, "OK"
 end
 
 -- Common signature verification logic for cookies and signed URL prefix
@@ -171,32 +176,32 @@ local function verify_signature(params, api_key_name, source_type)
     local expires = tonumber(params.Expires)
     if not expires or expires < ngx.time() then
         ngx.log(ngx.ERR, "[AUTH] ", source_type, " has expired")
-        return false, source_type .. " expired"
+        return ngx.HTTP_FORBIDDEN, source_type .. " expired"
     end
 
     -- Decode URLPrefix from base64
     local url_prefix = ngx.decode_base64(params.URLPrefix)
     if not url_prefix then
         ngx.log(ngx.ERR, "[AUTH] Invalid URLPrefix in ", source_type)
-        return false, "Invalid URLPrefix"
+        return ngx.HTTP_BAD_REQUEST, "Invalid URLPrefix"
     end
 
     -- Validate URL prefix (match URL)
-    local ok, err = verify_request_matches_prefix(url_prefix)
-    if not ok then
-        return false, err
+    local status, err = verify_request_matches_prefix(url_prefix)
+    if status ~= ngx.HTTP_OK then
+        return status, err
     end
 
     -- Retrieve the secret key
     if api_key_name ~= params.KeyName then
         ngx.log(ngx.ERR, "[AUTH] Invalid KeyName in ", source_type)
-        return false, "Invalid API Key name"
+        return ngx.HTTP_FORBIDDEN, "Invalid API Key name"
     end
 
     local b_api_key = dict:get("b_api_key_" .. api_key_name)
     if not b_api_key then
         ngx.log(ngx.ERR, "[AUTH] No binary key for: ", api_key_name)
-        return false, "Invalid binary API Key"
+        return ngx.HTTP_INTERNAL_SERVER_ERROR, "Invalid binary API Key"
     end
 
     -- Verify HMAC signature
@@ -217,10 +222,10 @@ local function verify_signature(params, api_key_name, source_type)
     -- ngx.log(ngx.INFO, "[AUTH] expected_signature: " .. expected_signature)
     if params.Signature ~= expected_signature then
         ngx.log(ngx.ERR, "[AUTH] Invalid signature in ", source_type)
-        return false, "Invalid HMAC signature"
+        return ngx.HTTP_FORBIDDEN, "Invalid HMAC signature"
     end
 
-    return true, "OK"
+    return ngx.HTTP_OK, "OK"
 end
 
 -- Cookie-based HMAC signature verification
@@ -230,7 +235,7 @@ function _M.verify_cookie(api_key_name)
     local cookie_value = ngx.var["cookie_secdn-cdn-cookie"]  -- 'SECDN-CDN-Cookie' will be used here (in lowercase)
     if not cookie_value then
         ngx.log(ngx.ERR, "[AUTH] Missing cookie: SECDN-CDN-Cookie")
-        return false, "Cookie not found"
+        return ngx.HTTP_BAD_REQUEST, "Cookie not found"
     end
 
     -- ngx.log(ngx.INFO, "[AUTH] Cookie: " .. cookie_value)
@@ -239,7 +244,7 @@ function _M.verify_cookie(api_key_name)
     local cookie_data, err = parse_cookie(cookie_value)
     if not cookie_data then
         ngx.log(ngx.ERR, "[AUTH] Cookie parse error: ", err)
-        return false, "Invalid cookie format"
+        return ngx.HTTP_BAD_REQUEST, "Invalid cookie format"
     end
 
     return verify_signature(cookie_data, api_key_name, "Cookie")
@@ -252,7 +257,7 @@ function _M.verify_signed_url_prefix(api_key_name)
     local args = ngx.req.get_uri_args()
     if not args then
         ngx.log(ngx.ERR, "[AUTH] No query arguments found")
-        return false, "Missing query arguments"
+        return ngx.HTTP_BAD_REQUEST, "Missing query arguments"
     end
 
     local params = {
@@ -263,9 +268,8 @@ function _M.verify_signed_url_prefix(api_key_name)
     }
     
     -- Remove auth query parameters before proxying
-    local old_args = ngx.req.get_uri_args()
     local new_args = {}
-    for k, v in pairs(old_args) do
+    for k, v in pairs(args) do
         if k ~= "URLPrefix" and k ~= "Expires" and k ~= "KeyName" and k ~= "Signature" then
             new_args[k] = v
         end
@@ -278,7 +282,7 @@ function _M.verify_signed_url_prefix(api_key_name)
 
     if not (params.URLPrefix and params.Expires and params.KeyName and params.Signature) then
         ngx.log(ngx.ERR, "[AUTH] Missing required signed URL Prefix parameters")
-        return false, "Missing one or more of: URLPrefix, Expires, KeyName, Signature"
+        return ngx.HTTP_BAD_REQUEST, "Missing one or more of: URLPrefix, Expires, KeyName, Signature"
     end
 
     -- ngx.log(ngx.INFO, "[AUTH] Signed URL Prefix params: URLPrefix(b64)=", params.URLPrefix, ", Expires=", params.Expires, ", KeyName=", params.KeyName)
