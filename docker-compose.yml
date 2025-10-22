@@ -45,6 +45,17 @@ services:
     #   - /app/.next
     environment:
       - CHOKIDAR_USEPOLLING=true
+  fluent-bit:
+    image: fluent/fluent-bit:4.0.0
+    volumes:
+      - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - ./fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf
+      - ./fluent-bit/scripts:/fluent-bit/scripts
+    command: -c /fluent-bit/etc/fluent-bit.conf
+    deploy:
+      resources:
+        limits:
+          cpus: '0.01'
   openresty:
     build: ./openresty
     ports:
@@ -64,3 +75,4 @@ services:
       - mc
       - httpbin
       - nextjs-player
+      - fluent-bit

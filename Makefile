@@ -120,6 +120,9 @@ ab-test-minio: ## [壓力測試] 測試 MinIO 直連路由
 ab-test-all: ## [壓力測試] 測試 API Key + MinIO 路由
 	@ab -n 100000 -c 50 -H "X-SECDN-API-KEY: 58028419ac995b94cc7750b7c5e3a117" "http://localhost:8080/test/all/hello.txt"
 
+ab-test-lualog: ## [壓力測試] 測試 LUA Log
+	@ab -n 100000 -c 50 "http://localhost:8080/lualog?URLPrefix=aHR0cHM6Ly9sb2NhbGhvc3Q6ODQ0My90ZXN0Lw==&Expires=1792540799&KeyName=user-a&Signature=YXNGBwGGAijLMu-iuZZgje5b-Vk="
+
 benchmark_signer: ## [效能測試] 執行 AWS V4 簽章效能測試
 	curl "http://localhost:8080/benchmark_signer?n=100000"
 
